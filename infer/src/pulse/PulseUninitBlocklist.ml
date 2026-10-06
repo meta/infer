@@ -10,7 +10,14 @@ open! IStd
 let dispatch : (unit, unit, unit) ProcnameDispatcher.TypName.dispatcher =
   let open ProcnameDispatcher.TypName in
   make_dispatcher
-    [ -"folly" &:: "Optional" &::.*--> ()
+    [ (* the models of their constructors only write the reference to the field, see
+         [Typ.thrift_field_refs] *)
+      -"apache" &:: "thrift" &:: "field_ref" &::.*--> ()
+    ; -"apache" &:: "thrift" &:: "optional_boxed_field_ref" &::.*--> ()
+    ; -"apache" &:: "thrift" &:: "optional_field_ref" &::.*--> ()
+    ; -"apache" &:: "thrift" &:: "required_field_ref" &::.*--> ()
+    ; -"apache" &:: "thrift" &:: "union_field_ref" &::.*--> ()
+    ; -"folly" &:: "Optional" &::.*--> ()
     ; -"folly" &:: "small_vector" &::.*--> ()
     ; -"std" &:: "__wrap_iter" &::.*--> ()
     ; -"std" &:: "atomic" &::.*--> ()

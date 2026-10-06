@@ -42,3 +42,40 @@ void uaf_via_arrow_bad() {
   delete p;
   fr->leaf = 42;
 }
+
+namespace apache {
+namespace thrift {
+
+struct IsSetBit {
+  IsSetBit(unsigned char& isset, unsigned char bit) : ptr_(&isset), bit_(bit) {}
+  bool is_set() const { return is_atomic_ ? false : ((*ptr_ >> bit_) & 1); }
+
+  unsigned char* ptr_;
+  const unsigned char bit_;
+  const bool is_atomic_ = false;
+};
+
+template <class T>
+class optional_field_ref {
+ public:
+  optional_field_ref(T value, unsigned char& isset, unsigned char bit = 0)
+      : value_(value), bit_(isset, bit) {}
+  bool has_value() const { return bit_.is_set(); }
+
+ private:
+  T value_;
+  IsSetBit bit_;
+};
+
+} // namespace thrift
+} // namespace apache
+
+struct WithOptionalField {
+  int value{0};
+  unsigned char isset{0};
+  apache::thrift::optional_field_ref<int&> field() { return {value, isset}; }
+};
+
+// the model of the constructor only writes the reference to the field, so the
+// other members of the field reference must not be considered uninitialized
+bool has_value_ok(WithOptionalField& s) { return s.field().has_value(); }
