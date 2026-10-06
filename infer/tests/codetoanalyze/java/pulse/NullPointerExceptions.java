@@ -858,4 +858,19 @@ public class NullPointerExceptions {
     File[] files = dir.listFiles(filter);
     return files.length;
   }
+
+  int derefAfterComparisonToNullBad(A a) {
+    if (a == null) {
+      unknownFunc();
+    }
+    return a.x;
+  }
+
+  int callDerefAfterComparisonToNullWithNullBad() {
+    return derefAfterComparisonToNullBad(null);
+  }
+
+  int callDerefAfterComparisonToNullOk() {
+    return derefAfterComparisonToNullBad(new A());
+  }
 }
