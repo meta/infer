@@ -366,6 +366,91 @@ struct NoDestructorDefinition {
 
 void dead_struct_no_destructor_definition_ok() { NoDestructorDefinition dead; }
 
+void register_object();
+
+int object_counter;
+
+struct CtorCallsExtern {
+  CtorCallsExtern() { register_object(); }
+};
+
+// the object is kept for the side effect of its constructor
+int unused_object_ctor_calls_extern_ok(int x) {
+  CtorCallsExtern registrar;
+  return x * 2;
+}
+
+struct CtorWritesGlobal {
+  CtorWritesGlobal() { object_counter++; }
+};
+
+void unused_object_ctor_writes_global_ok() { CtorWritesGlobal counted; }
+
+struct CtorWritesArg {
+  CtorWritesArg(int* out) { *out = 1; }
+};
+
+int unused_object_ctor_writes_arg_ok() {
+  int v = 0;
+  CtorWritesArg writer(&v);
+  return v;
+}
+
+struct CtorUndefined {
+  CtorUndefined();
+};
+
+void unused_object_ctor_undefined_ok() { CtorUndefined object; }
+
+struct MemberCtorCallsExtern {
+  CtorCallsExtern member;
+};
+
+void unused_object_member_ctor_calls_extern_ok() { MemberCtorCallsExtern object; }
+
+struct CopyCtorCallsExtern {
+  CopyCtorCallsExtern(const CopyCtorCallsExtern&) { register_object(); }
+};
+
+// copies are not kept for the side effects of the copy constructor
+void unused_object_copy_ctor_calls_extern_bad(const CopyCtorCallsExtern& c) {
+  CopyCtorCallsExtern copy(c);
+}
+
+struct CtorLinksToParent {
+  CtorLinksToParent* next;
+  CtorLinksToParent(CtorLinksToParent* parent) { parent->next = this; }
+};
+
+// a constructor taking a pointer to its own class is not a copy constructor
+void unused_object_ctor_links_to_parent_ok(CtorLinksToParent* parent) {
+  CtorLinksToParent child(parent);
+}
+
+struct CtorSetsFields {
+  int x;
+  int* p;
+  CtorSetsFields() : x(0) { p = &x; }
+};
+
+void unused_object_ctor_sets_fields_bad() { CtorSetsFields object; }
+
+struct MemberCtorSetsFields {
+  CtorSetsFields member;
+  int y = 1;
+};
+
+void unused_object_member_ctor_sets_fields_bad() { MemberCtorSetsFields object; }
+
+struct CtorCallsMethod {
+  int x;
+  CtorCallsMethod() { x = init(); }
+  int init() { return 0; }
+};
+
+// calls from a constructor to functions other than constructors are assumed to have side effects
+void FN_unused_object_ctor_calls_method_bad() { CtorCallsMethod object; }
+
 std::mutex my_mutex;
 
 void dead_lock_guard_ok() { std::lock_guard<std::mutex> lock(my_mutex); }
