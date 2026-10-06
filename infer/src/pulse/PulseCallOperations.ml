@@ -82,6 +82,35 @@ let unbind_variadic_actuals previous astate =
           Stack.remove_vars [var] astate )
 
 
+(** In order to apply summary specialisation, we call blocks or function pointers with the closure
+    as the first argument, but when we want to call the actual code of the block or function, we
+    need to remove the closure argument again. The extra actuals of variadic functions are dropped
+    too. *)
+let actuals_without_closure call_flags ~actuals =
+  if call_flags.CallFlags.cf_is_objc_block then match actuals with _ :: rest -> rest | [] -> []
+  else actuals
+
+
+(** The actuals matched against a callee's formals: closure argument removed, then the extra actuals
+    of a variadic function dropped. [apply_callee] cannot use this directly -- upstream #2078 binds
+    those extra actuals to globals, so it needs the closure-stripped list BEFORE trimming -- but
+    callers that only need the final list, such as [is_arity_mismatch_with_c_definition], do. *)
+let actuals_for_formals call_flags callee_pname ~formals ~actuals =
+  trim_actuals_if_var_arg (Some callee_pname) ~formals
+    ~actuals:(actuals_without_closure call_flags ~actuals)
+
+
+(** C functions are identified by their name only, so a call can resolve to a definition whose
+    formals do not match the actuals, e.g. a definition from another program analyzed together with
+    the caller, or one called through an unprototyped declaration or a function pointer cast. None
+    of the pre/posts of such a definition can be applied. *)
+let is_arity_mismatch_with_c_definition call_flags callee_pname ~actuals =
+  Procname.is_c callee_pname
+  && Option.exists (IRAttributes.load callee_pname) ~f:(fun {ProcAttributes.formals} ->
+      let actuals = actuals_for_formals call_flags callee_pname ~formals ~actuals in
+      not (Int.equal (List.length formals) (List.length actuals)) )
+
+
 let is_const_version pname_method (other_method : Struct.tenv_method) =
   String.equal pname_method (Procname.get_method other_method.name)
   && Option.exists (IRAttributes.load other_method.name) ~f:(fun attr ->
@@ -363,13 +392,7 @@ let apply_callee ({InterproceduralAnalysis.tenv; proc_desc} as analysis_data)
         AbductiveDomain.Summary.remove_all_must_not_be_tainted ~kinds callee_summary
       else callee_summary
     in
-    (* In order to apply summary specialisation, we call blocks or function pointers with the closure as the first argument,
-       but when we want to call the actual code of the block or function, we need to remove the closure argument again. *)
-    let actuals =
-      if call_flags.CallFlags.cf_is_objc_block then
-        match actuals with _ :: rest -> rest | [] -> []
-      else actuals
-    in
+    let actuals = actuals_without_closure call_flags ~actuals in
     let astate, variadic_globals =
       bind_variadic_actuals path call_loc (Some callee_proc_name) ~formals ~actuals astate
     in
@@ -1109,6 +1132,16 @@ let call ?disjunct_limit ({InterproceduralAnalysis.analyze_dependency} as analys
   in
   let non_disj_caller = record_direct_call non_disj_caller in
   match analyze_dependency callee_pname with
+  | Ok _ when is_arity_mismatch_with_c_definition call_flags callee_pname ~actuals ->
+      L.d_printfln_escaped ~color:Orange
+        "The formals of %a cannot be matched with the %d actuals, treating the call as unknown"
+        Procname.pp callee_pname (List.length actuals) ;
+      Stats.incr_pulse_unknown_calls_arity_mismatch () ;
+      let res, (non_disj, contradiction) =
+        call_aux_unknown disjunct_limit analysis_data path call_loc callee_pname ~ret ~actuals
+          ~formals_opt:None call_kind call_flags astate non_disj_caller
+      in
+      (res, non_disj, contradiction, `UnknownCall)
   | Ok summary ->
       let is_pulse_specialization_limit_reached =
         Specialization.Pulse.is_pulse_specialization_limit_reached summary.PulseSummary.specialized
