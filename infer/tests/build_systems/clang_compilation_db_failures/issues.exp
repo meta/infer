@@ -1,0 +1,3 @@
+WARNING: 2 of 3 compilation commands failed, starting with the one for build_systems/codetoanalyze/clang_compilation_db_failures/bad_flag.c.
+build_systems/codetoanalyze/clang_compilation_db_failures/compiles.c, null_dereference_in_compiled_file_bad, 2, NULLPTR_DEREFERENCE, no_bucket, ERROR, [is assigned to the null pointer,assigned,invalid access occurs here]
+build_systems/codetoanalyze/clang_compilation_db_failures/syntax_error.c, null_dereference_before_syntax_error_bad, 2, NULLPTR_DEREFERENCE, no_bucket, ERROR, [is assigned to the null pointer,assigned,invalid access occurs here]
