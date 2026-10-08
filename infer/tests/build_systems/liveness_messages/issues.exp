@@ -1,0 +1,3 @@
+build_systems/liveness_messages/dead_stores.cpp, overwritten_local_bad, 14, DEAD_STORE, The value written to `x` is never used.
+build_systems/liveness_messages/dead_stores.cpp, overwritten_local_bad, 15, DEAD_STORE, The value written to `x` is never used.
+build_systems/liveness_messages/dead_stores.cpp, unused_copy_bad, 19, DEAD_STORE, The value written to `copy` is never used.

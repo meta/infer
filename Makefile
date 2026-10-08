@@ -33,6 +33,7 @@ BUILD_SYSTEMS_TESTS += \
   fail_on_issue \
   infer-debug \
   j1 \
+  liveness_messages \
   missing_deps \
   pass_on_suppression \
   procs_to_analyze \
