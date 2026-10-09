@@ -121,16 +121,20 @@ let fcp_clang_resource_include_dir =
     order) [prev]. *)
 let filter_and_replace_unsupported_args ?(replace_options_arg = fun _ s -> s) ?(post_args = [])
     ?(pre_args = []) args =
-  (* [prev] is the previously seen argument, [res_rev] is the reversed result, [changed] is true if
-     some change has been performed *)
-  let rec aux in_argfiles (prev_is_block_listed_with_arg, res_rev, changed) args =
+  let drop_xclang = function "-Xclang" :: tl -> tl | args -> args in
+  (* [pending_arg] records whether a removed flag still needs its direct or forwarded argument
+     removed; [res_rev] is the reversed result, [changed] records any change. *)
+  let rec aux in_argfiles (pending_arg, res_rev, changed) args =
     match args with
     | [] ->
-        (prev_is_block_listed_with_arg, res_rev, changed)
-    | _ :: tl when prev_is_block_listed_with_arg ->
+        (pending_arg, res_rev, changed)
+    | arg :: tl when Option.is_some pending_arg ->
         (* in the unlikely event that a block listed flag with arg sits as the last option in some
          arg file, we need to remove its argument now *)
-        aux in_argfiles (false, res_rev, true) tl
+        let pending_arg =
+          match (pending_arg, arg) with Some `Forwarded, "-Xclang" -> Some `Direct | _ -> None
+        in
+        aux in_argfiles (pending_arg, res_rev, true) tl
     | at_argfile :: tl
       when String.is_prefix at_argfile ~prefix:"@" && not (IString.Set.mem at_argfile in_argfiles)
       -> (
@@ -144,19 +148,22 @@ let filter_and_replace_unsupported_args ?(replace_options_arg = fun _ s -> s) ?(
               String.strip s
               |> Utils.strip_balanced_once ~drop:(function '"' | '\'' -> true | _ -> false)
             in
-            let last_in_file_is_block_listed, rev_res_with_file_args, changed_file =
-              List.map ~f:strip lines
-              |> aux in_argfiles' (prev_is_block_listed_with_arg, res_rev, false)
+            let pending_arg_after_file, rev_res_with_file_args, changed_file =
+              List.map ~f:strip lines |> aux in_argfiles' (pending_arg, res_rev, false)
             in
-            if changed_file then
-              aux in_argfiles' (last_in_file_is_block_listed, rev_res_with_file_args, true) tl
+            let ends_with_xclang =
+              match rev_res_with_file_args with "-Xclang" :: _ -> true | _ -> false
+            in
+            (* Expose a trailing wrapper so a blocked argument after the file can remove it. *)
+            if changed_file || ends_with_xclang then
+              aux in_argfiles' (pending_arg_after_file, rev_res_with_file_args, true) tl
             else
               (* keep the same argfile if we haven't needed to change anything in it *)
-              aux in_argfiles' (last_in_file_is_block_listed, at_argfile :: res_rev, changed) tl
+              aux in_argfiles' (pending_arg_after_file, at_argfile :: res_rev, changed) tl
         | exception e ->
             L.external_warning "Error reading argument file '%s': %s@\n" at_argfile
               (Exn.to_string e) ;
-            aux in_argfiles' (false, at_argfile :: res_rev, changed) tl )
+            aux in_argfiles' (None, at_argfile :: res_rev, changed) tl )
     | flag :: tl
       when List.mem ~equal:String.equal Config.clang_block_listed_flags flag
            || String.lsplit2 ~on:'=' flag
@@ -165,15 +172,16 @@ let filter_and_replace_unsupported_args ?(replace_options_arg = fun _ s -> s) ?(
                   List.mem ~equal:String.equal Config.clang_block_listed_flags_with_arg flag
               | None ->
                   false ->
-        aux in_argfiles (false, res_rev, true) tl
+        aux in_argfiles (None, drop_xclang res_rev, true) tl
     | flag :: tl when List.mem ~equal:String.equal Config.clang_block_listed_flags_with_arg flag ->
         (* remove the flag and its arg separately in case we are at the end of an argfile *)
-        aux in_argfiles (true, res_rev, true) tl
+        let pending_arg = match res_rev with "-Xclang" :: _ -> `Forwarded | _ -> `Direct in
+        aux in_argfiles (Some pending_arg, drop_xclang res_rev, true) tl
     | arg :: tl ->
         let arg' = replace_options_arg res_rev arg in
-        aux in_argfiles (false, arg' :: res_rev, changed || not (phys_equal arg arg')) tl
+        aux in_argfiles (None, arg' :: res_rev, changed || not (phys_equal arg arg')) tl
   in
-  match aux IString.Set.empty (false, [], false) args with
+  match aux IString.Set.empty (None, [], false) args with
   | _, res_rev, _ ->
       (* return non-reversed list *)
       List.append pre_args (List.rev_append res_rev post_args)

@@ -1,0 +1,12 @@
+[
+  {
+    "directory": "%source_dir%",
+    "file": "capture_regression.c",
+    "arguments": ["clang", "-c", "-DCAPTURE_FLAG=1", "capture_regression.c"]
+  },
+  {
+    "directory": "%source_dir%",
+    "file": "capture_failure.c",
+    "arguments": ["clang", "-c", "-Xclang", "-unsupported-capture-flag", "capture_failure.c"]
+  }
+]

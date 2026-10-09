@@ -103,21 +103,28 @@ let run_clang_frontend ast_source =
   PerfEvent.(log (fun logger -> PerfEvent.log_end_event logger ()))
 
 
+let handle_capture_exception exc backtrace =
+  if not Config.keep_going then Stdlib.Printexc.raise_with_backtrace exc backtrace ;
+  L.internal_error "ERROR RUNNING CAPTURE: %a@\n%s@\n" Exn.pp exc
+    (Stdlib.Printexc.raw_backtrace_to_string backtrace)
+
+
 let run_and_validate_clang_frontend ast_source =
   try run_clang_frontend ast_source
-  with exc ->
-    IExn.reraise_if exc ~f:(fun () -> not Config.keep_going) ;
-    L.internal_error "ERROR RUNNING CAPTURE: %a@\n%s@\n" Exn.pp exc (Printexc.get_backtrace ())
+  with exc -> handle_capture_exception exc (Stdlib.Printexc.get_raw_backtrace ())
 
 
-let run_clang clang_command read =
+let run_clang_read_result clang_command read =
   let exit_with_error exit_code =
     L.external_error "Error: the following clang command did not run successfully:@\n  %a@."
       ClangCommand.pp clang_command ;
     L.exit exit_code
   in
-  (* NOTE: exceptions will propagate through without exiting here *)
-  match Utils.with_process_in (ClangCommand.command_to_run clang_command) read with
+  let read_result chan =
+    try Ok (read chan) with exc -> Error (exc, Stdlib.Printexc.get_raw_backtrace ())
+  in
+  (* Wait for the compiler before handling reader errors: a failing compiler may emit no AST. *)
+  match Utils.with_process_in (ClangCommand.command_to_run clang_command) read_result with
   | res, Ok () ->
       res
   | _, Error (`Exit_non_zero n) ->
@@ -127,12 +134,20 @@ let run_clang clang_command read =
       exit_with_error 1
 
 
-let run_clang clang_command read =
+let run_clang_read_result clang_command read =
   PerfEvent.(
     log (fun logger -> PerfEvent.log_begin_event logger ~categories:["frontend"] ~name:"clang" ()) ) ;
-  let result = run_clang clang_command read in
+  let result = run_clang_read_result clang_command read in
   PerfEvent.(log (fun logger -> PerfEvent.log_end_event logger ())) ;
   result
+
+
+let run_clang clang_command read =
+  match run_clang_read_result clang_command read with
+  | Ok result ->
+      result
+  | Error (exc, backtrace) ->
+      Stdlib.Printexc.raise_with_backtrace exc backtrace
 
 
 let run_plugin_and_frontend source_path frontend clang_cmd =
@@ -152,7 +167,7 @@ let run_plugin_and_frontend source_path frontend clang_cmd =
       "bdump -x -d \"%s/clang_ast.dict\" -w '!!DUMMY!!' %s \\@\n  > %s.bdump" Config.etc_dir
       biniou_fname basename ;
     Out_channel.close debug_script_out ) ;
-  run_clang clang_plugin_cmd frontend
+  run_clang_read_result clang_plugin_cmd frontend
 
 
 let cc1_capture clang_cmd =
@@ -184,10 +199,16 @@ let cc1_capture clang_cmd =
     match Config.clang_ast_file with
     | Some fname ->
         run_and_validate_clang_frontend (`File fname)
-    | None ->
+    | None -> (
+      match
         run_plugin_and_frontend source_path
-          (fun chan_in -> run_and_validate_clang_frontend (`BiniouPipe chan_in))
+          (fun chan_in -> run_clang_frontend (`BiniouPipe chan_in))
           clang_cmd
+      with
+      | Ok () ->
+          ()
+      | Error (exc, backtrace) ->
+          handle_capture_exception exc backtrace )
 
 
 let capture clang_cmd =

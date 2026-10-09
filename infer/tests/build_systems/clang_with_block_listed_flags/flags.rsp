@@ -1,0 +1,6 @@
+-Xclang
+-bogus-one=alpha=message
+-Xclang
+-bogus-two=beta=message
+-Xclang
+-bogus-three=gamma=message
