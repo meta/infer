@@ -17,3 +17,10 @@ INFERPRINT_OPTIONS = --issues-tests
 SOURCES = ../codetoanalyze/hello.c
 
 include $(TESTS_DIR)/clang.make
+
+.PHONY: capture_regressions
+capture_regressions:
+	$(QUIET)$(call silent_on_success,Testing forwarded flags and capture failures,\
+	  bash ./test_capture.sh "$(INFER_BIN)")
+
+test: capture_regressions
