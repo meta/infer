@@ -12,6 +12,13 @@ INFERPRINT_OPTIONS = --issues-tests
 
 include $(TESTS_DIR)/infer.make
 
+.PHONY: invalid_paths
+invalid_paths:
+	$(QUIET)$(call silent_on_success,Clang compilation database path validation,\
+	  python3 ./test_paths.py "$(INFER_BIN)")
+
+test: invalid_paths
+
 ../codetoanalyze/path\ with\ spaces/hel\ lo.c: ../codetoanalyze/path_with_spaces/hel_lo.c
 #	make does not want to interpret "$(@D)" in the right way here...
 	$(QUIET)$(MKDIR_P) ../codetoanalyze/path\ with\ spaces/

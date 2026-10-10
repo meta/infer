@@ -34,33 +34,43 @@ let parse_command_and_arguments =
     clang wrapper. *)
 let decode_json_file (database : t) json_format =
   let json_path = match json_format with `Raw x | `Escaped x -> x in
-  let unescape_path s =
-    match json_format with
-    | `Raw _ ->
-        s
-    | `Escaped _ ->
-        Utils.with_process_in
-          (Printf.sprintf "/bin/sh -c 'printf \"%%s\" %s'" s)
-          In_channel.input_line_exn
-        |> fst
-  in
-  L.(debug Capture Quiet) "parsing compilation database from %s@\n" json_path ;
   let exit_format_error error =
     L.(die ExternalError) ("Json file doesn't have the expected format: " ^^ error)
   in
+  let unescape_path field s =
+    let path =
+      match json_format with
+      | `Raw _ ->
+          s
+      | `Escaped _ -> (
+          let path, status =
+            Utils.with_process_in
+              (Printf.sprintf "/bin/sh -c 'printf \"%%s\" %s'" s)
+              In_channel.input_all
+          in
+          match status with
+          | Ok () ->
+              path
+          | Error _ ->
+              exit_format_error "invalid shell escaping in the \"%s\" field" field )
+    in
+    if String.is_empty path then exit_format_error "the value of the \"%s\" field is empty" field ;
+    path
+  in
+  L.(debug Capture Quiet) "parsing compilation database from %s@\n" json_path ;
   let parse_command db json =
     let directory = ref None in
     let file = ref None in
     let command = ref None in
     let one_field = function
       | "directory", `String dir ->
-          directory := Some (unescape_path dir)
+          directory := Some (unescape_path "directory" dir)
       | "directory", json ->
           exit_format_error
             "the value of the \"directory\" field is not a string; found '%s' instead"
             (Yojson.Basic.to_string json)
       | "file", `String f ->
-          file := Some (unescape_path f)
+          file := Some (unescape_path "file" f)
       | "file", json ->
           exit_format_error "the value of the \"file\" field is not a string; found '%s' instead"
             (Yojson.Basic.to_string json)
