@@ -49,6 +49,7 @@ RUN cd /infer && \
     eval $(opam env) && \
     ./autogen.sh && \
     ./configure && \
+    ./facebook-clang-plugins/clang/src/prepare_clang_src.sh && \
     ./facebook-clang-plugins/clang/setup.sh
 
 # Generate a release
