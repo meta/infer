@@ -339,7 +339,7 @@ AC_ASSERT_OCAML_PKG([atdgen])
 AC_ASSERT_OCAML_PKG([biniou])
 AC_ASSERT_OCAML_PKG([camlzip], [zip])
 AC_ASSERT_OCAML_PKG([easy-format])
-AC_ASSERT_OCAML_PKG([oUnit])
+AC_ASSERT_OCAML_PKG([ounit2])
 AC_CHECK_TOOL([UTOP], [utop], [no])
 AC_ASSERT_OCAML_PKG([yojson])
 

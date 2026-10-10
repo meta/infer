@@ -99,7 +99,7 @@ let inferunit_stanza =
  (flags (:standard
      -open Core -open IStdlib -open IStd -open IBase -open Backend -open Integration -open Textuallib
      -open UnitTests -open ClangFrontend %s %s))
- (libraries %s oUnit core IStdlib IBase Backend Integration UnitTests Textuallib %s)
+ (libraries %s ounit2 core IStdlib IBase Backend Integration UnitTests Textuallib %s)
  (link_flags %s)
  (preprocess (pps ppx_compare))
  (promote (until-clean) (into ../bin))

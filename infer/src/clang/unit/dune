@@ -22,6 +22,6 @@
    IBase
    -open
    ClangFrontend))
- (libraries oUnit core IStdlib ATDGenerated IBase IR ClangFrontend)
+ (libraries ounit2 core IStdlib ATDGenerated IBase IR ClangFrontend)
  (preprocess
   (pps ppx_compare)))
