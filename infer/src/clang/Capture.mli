@@ -7,6 +7,10 @@
 
 open! IStd
 
+val biniou_input : ?len:int -> In_channel.t -> Bi_inbuf.t
+(** AST input buffer with an initial capacity of [len] that grows for larger tokens. Preserves
+    Biniou's channel refill, stream offsets, shared-object table, and end-of-input behavior. *)
+
 val run_clang : ClangCommand.t -> (In_channel.t -> 'a) -> 'a
 
 val capture : ClangCommand.t -> unit

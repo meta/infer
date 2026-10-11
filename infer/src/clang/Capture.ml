@@ -10,20 +10,34 @@ module L = Logging
 (** enable debug mode (to get more data saved to disk for future inspections) *)
 let debug_mode = Config.debug_mode || Config.frontend_stats
 
-(** This function reads the json file in fname, validates it, and encodes in the AST data structure
-    defined in Clang_ast_t. *)
-let validate_decl_from_file file =
-  match file with
-  | `Biniou fname ->
-      Atdgen_runtime.Util.Biniou.from_file ~len:CFrontend_config.biniou_buffer_size
-        Clang_ast_b.read_decl fname
-  | `Yojson fname ->
-      Atdgen_runtime.Util.Json.from_file Clang_ast_j.read_decl fname
+let biniou_input ?(len = CFrontend_config.biniou_buffer_size) channel =
+  let input = Bi_inbuf.from_channel ~len ~shrlen:0 channel in
+  let refill = input.Bi_inbuf.i_refill in
+  let grow_and_refill (input : Bi_inbuf.t) needed =
+    if needed > input.i_max_len then (
+      let doubled =
+        if input.i_max_len > Stdlib.Sys.max_string_length / 2 then Stdlib.Sys.max_string_length
+        else 2 * input.i_max_len
+      in
+      let size = Int.max needed doubled in
+      let bytes = Stdlib.Bytes.create size in
+      Stdlib.Bytes.blit input.i_s 0 bytes 0 input.i_len ;
+      input.i_s <- bytes ;
+      input.i_max_len <- size ) ;
+    refill input needed
+  in
+  {input with Bi_inbuf.i_refill= grow_and_refill}
 
 
-let validate_decl_from_channel chan =
-  Atdgen_runtime.Util.Biniou.from_channel ~len:CFrontend_config.biniou_buffer_size
-    Clang_ast_b.read_decl chan
+let validate_decl_from_channel channel = Clang_ast_b.read_decl (biniou_input channel)
+
+(** Read an AST from its serialized representation. The plugin's literal limit does not bound
+    identifiers or other AST strings, so the input buffer grows when a token needs more space. *)
+let validate_decl_from_file = function
+  | `Biniou filename ->
+      In_channel.with_file filename ~binary:true ~f:validate_decl_from_channel
+  | `Yojson filename ->
+      Atdgen_runtime.Util.Json.from_file Clang_ast_j.read_decl filename
 
 
 let init_global_state_for_capture_and_linters source_file =
