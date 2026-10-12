@@ -1,5 +1,6 @@
-This error is currently reported in Java. A deadlock occurs when two distinct
-threads try to acquire two locks in reverse orders. The following code
+This error is reported in Java, and in C, C++, and Objective-C code that uses
+pthread mutexes or the C++ standard library mutexes. A deadlock occurs when two
+distinct threads try to acquire two locks in reverse orders. The following code
 illustrates a textbook example. Of course, in real deadlocks, the lock
 acquisitions may be separated by deeply nested call chains.
 
