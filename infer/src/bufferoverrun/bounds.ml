@@ -664,10 +664,13 @@ module Bound = struct
       | MinMax (c1, (Minus as sign), (Max as minmax), d1, s1), MinMax (c2, Minus, Max, d2, s2)
       | MinMax (c1, (Plus as sign), (Min as minmax), d1, s1), MinMax (c2, Plus, Min, d2, s2)
         when Symb.Symbol.equal s1 s2 ->
+          (* Both bounds are of the form [min (vi, ci ± s)], where [vi] is the value they are
+             capped at. Their minimum is [min (min (v1, v2), min (c1, c2) ± s)], so the caps are
+             combined with [Z.min] whatever [minmax] is. *)
           let v1 = Sign.eval_big_int sign c1 d1 in
           let v2 = Sign.eval_big_int sign c2 d2 in
           let c = Z.min c1 c2 in
-          let v = MinMax.eval_big_int minmax v1 v2 in
+          let v = Z.min v1 v2 in
           let d = Sign.eval_neg_if_minus sign Z.(v - c) in
           mk_MinMax (c, sign, minmax, d, s1)
       | b1, b2 ->
