@@ -128,13 +128,9 @@ let filter_and_replace_unsupported_args ?(replace_options_arg = fun _ s -> s) ?(
     match args with
     | [] ->
         (pending_arg, res_rev, changed)
-    | arg :: tl when Option.is_some pending_arg ->
-        (* in the unlikely event that a block listed flag with arg sits as the last option in some
-         arg file, we need to remove its argument now *)
-        let pending_arg =
-          match (pending_arg, arg) with Some `Forwarded, "-Xclang" -> Some `Direct | _ -> None
-        in
-        aux in_argfiles (pending_arg, res_rev, true) tl
+    (* Expand before consuming a pending argument: the file's first argument is the value,
+       and its remaining arguments must survive. Track only active files so later occurrences
+       of the same response file are filtered too. *)
     | at_argfile :: tl
       when String.is_prefix at_argfile ~prefix:"@" && not (IString.Set.mem at_argfile in_argfiles)
       -> (
@@ -145,25 +141,35 @@ let filter_and_replace_unsupported_args ?(replace_options_arg = fun _ s -> s) ?(
             (* poor parsing of arguments with some stripping supported; hope that tools generating
                argfiles more or less put one argument per line *)
             let strip s =
-              String.strip s
-              |> Utils.strip_balanced_once ~drop:(function '"' | '\'' -> true | _ -> false)
+              let s = String.strip s in
+              if String.is_empty s then None
+              else
+                Some
+                  (Utils.strip_balanced_once ~drop:(function '"' | '\'' -> true | _ -> false) s)
             in
             let pending_arg_after_file, rev_res_with_file_args, changed_file =
-              List.map ~f:strip lines |> aux in_argfiles' (pending_arg, res_rev, false)
+              List.filter_map ~f:strip lines |> aux in_argfiles' (pending_arg, res_rev, false)
             in
             let ends_with_xclang =
               match rev_res_with_file_args with "-Xclang" :: _ -> true | _ -> false
             in
             (* Expose a trailing wrapper so a blocked argument after the file can remove it. *)
             if changed_file || ends_with_xclang then
-              aux in_argfiles' (pending_arg_after_file, rev_res_with_file_args, true) tl
+              aux in_argfiles (pending_arg_after_file, rev_res_with_file_args, true) tl
             else
               (* keep the same argfile if we haven't needed to change anything in it *)
-              aux in_argfiles' (pending_arg_after_file, at_argfile :: res_rev, changed) tl
+              aux in_argfiles (pending_arg_after_file, at_argfile :: res_rev, changed) tl
         | exception e ->
             L.external_warning "Error reading argument file '%s': %s@\n" at_argfile
               (Exn.to_string e) ;
-            aux in_argfiles' (None, at_argfile :: res_rev, changed) tl )
+            aux in_argfiles (None, at_argfile :: res_rev, changed) tl )
+    | arg :: tl when Option.is_some pending_arg ->
+        (* in the unlikely event that a block listed flag with arg sits as the last option in some
+         arg file, we need to remove its argument now *)
+        let pending_arg =
+          match (pending_arg, arg) with Some `Forwarded, "-Xclang" -> Some `Direct | _ -> None
+        in
+        aux in_argfiles (pending_arg, res_rev, true) tl
     | flag :: tl
       when List.mem ~equal:String.equal Config.clang_block_listed_flags flag
            || String.lsplit2 ~on:'=' flag
