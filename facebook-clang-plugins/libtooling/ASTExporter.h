@@ -230,6 +230,13 @@ class ASTExporter : public ConstDeclVisitor<ASTExporter<ATDWriter>>,
   const char *LastMacroLocFilename;
   unsigned LastMacroLocLine;
 
+  // The file whose final line was last measured by getPresumedLocFast, and the
+  // offset that line starts at, or ~0U when that file does not end in an
+  // unterminated line.
+  FileID FinalLineFileID;
+  unsigned FinalLineStart;
+  bool FinalLineKnown;
+
   // The \c FullComment parent of the comment being dumped.
   const FullComment *FC;
 
@@ -247,13 +254,15 @@ class ASTExporter : public ConstDeclVisitor<ASTExporter<ATDWriter>>,
         NullPtrStmt(new (Context) NullStmt(SourceLocation())),
         NullPtrDecl(EmptyDecl::Create(
             Context, Context.getTranslationUnitDecl(), SourceLocation())),
-        NullPtrComment(new(Context) Comment(
+        NullPtrComment(new (Context) Comment(
             CommentKind::None, SourceLocation(), SourceLocation())),
         LastLocFilename(""),
         LastLocLine(~0U),
         LastLocColumn(~0U),
         LastMacroLocFilename(""),
         LastMacroLocLine(~0U),
+        FinalLineStart(~0U),
+        FinalLineKnown(false),
         FC(0),
         NamePrint(Context.getSourceManager(), OF) {}
 
@@ -273,6 +282,7 @@ class ASTExporter : public ConstDeclVisitor<ASTExporter<ATDWriter>>,
                     PresumedLoc MLoc);
   void dumpPointer(const void *Ptr);
   void dumpSourceRange(SourceRange R);
+  PresumedLoc getPresumedLocFast(SourceLocation Loc);
   void dumpSourceLocation(SourceLocation Loc);
   void dumpQualType(const QualType &qt);
   void dumpTypeOld(const Type *T);
@@ -558,6 +568,78 @@ void ASTExporter<ATDWriter>::dumpMacroLoc(bool is_macro,
 //@atd   ?macro_file <ocaml mutable> : source_file option;
 //@atd   ?macro_line <ocaml mutable> : int option;
 //@atd } <ocaml field_prefix="sl_" validator="Clang_ast_visit.visit_source_loc">
+/// The offset the last line of \p FID starts at when that line has no
+/// terminator, and ~0U otherwise. SourceManager::getColumnNumber answers from
+/// its line cache only for a line that has a successor entry there; the last
+/// line of a buffer that does not end with a terminator has none, so each query
+/// on it instead scans back to the start of the line.
+static unsigned unterminatedFinalLineStart(const SourceManager &SM,
+                                           FileID FID) {
+  bool Invalid = false;
+  llvm::StringRef Buffer = SM.getBufferData(FID, &Invalid);
+  if (Invalid || Buffer.empty()) {
+    return ~0U;
+  }
+  char Last = Buffer[Buffer.size() - 1];
+  if (Last == '\n' || Last == '\r') {
+    return ~0U;
+  }
+  size_t Terminator = Buffer.find_last_of("\r\n");
+  return Terminator == llvm::StringRef::npos
+             ? 0U
+             : static_cast<unsigned>(Terminator + 1);
+}
+
+/// SourceManager::getPresumedLoc for a location on the unterminated last line
+/// of a file, where it would cost one scan of the line per call and so
+/// quadratic time over a long one. Every other location, and any file carrying
+/// line directives, is left to SourceManager.
+template <class ATDWriter>
+PresumedLoc ASTExporter<ATDWriter>::getPresumedLocFast(SourceLocation Loc) {
+  const SourceManager &SM = Context.getSourceManager();
+  if (Loc.isInvalid()) {
+    return SM.getPresumedLoc(Loc);
+  }
+  auto LocInfo = SM.getDecomposedExpansionLoc(Loc);
+  FileID FID = LocInfo.first;
+  unsigned Offset = LocInfo.second;
+  if (!FinalLineKnown || FID != FinalLineFileID) {
+    FinalLineFileID = FID;
+    FinalLineStart = unterminatedFinalLineStart(SM, FID);
+    FinalLineKnown = true;
+  }
+  if (FinalLineStart == ~0U || Offset < FinalLineStart) {
+    return SM.getPresumedLoc(Loc);
+  }
+  bool Invalid = false;
+  const SrcMgr::SLocEntry &Entry = SM.getSLocEntry(FID, &Invalid);
+  if (Invalid || !Entry.isFile()) {
+    return SM.getPresumedLoc(Loc);
+  }
+  const SrcMgr::FileInfo &FI = Entry.getFile();
+  // A line directive moves the line and the file name reported here, so leave
+  // those files to SourceManager even though they keep paying for the scan.
+  if (FI.hasLineDirectives()) {
+    return SM.getPresumedLoc(Loc);
+  }
+  unsigned Line = SM.getLineNumber(FID, Offset, &Invalid);
+  if (Invalid) {
+    return SM.getPresumedLoc(Loc);
+  }
+  const SrcMgr::ContentCache &Content = FI.getContentCache();
+  llvm::StringRef Filename;
+  if (Content.OrigEntry) {
+    Filename = Content.OrigEntry->getName();
+  } else if (auto Buffer = SM.getBufferOrNone(FID)) {
+    Filename = Buffer->getBufferIdentifier();
+  }
+  // The scan SourceManager would have run returns the offset into the line,
+  // without the terminator adjustment its cached path makes, there being no
+  // terminator to point at.
+  unsigned Column = Offset - FinalLineStart + 1;
+  return PresumedLoc(Filename.data(), FID, Line, Column, FI.getIncludeLoc());
+}
+
 template <class ATDWriter>
 void ASTExporter<ATDWriter>::dumpSourceLocation(SourceLocation Loc) {
   const SourceManager &SM = Context.getSourceManager();
@@ -567,9 +649,8 @@ void ASTExporter<ATDWriter>::dumpSourceLocation(SourceLocation Loc) {
 
   // The general format we print out is filename:line:col, but we drop pieces
   // that haven't changed since the last loc printed.
-  PresumedLoc PLoc = SM.getPresumedLoc(SpellingLoc);
+  PresumedLoc PLoc = getPresumedLocFast(SpellingLoc);
   SourceLocation MSourceLoc = SM.getSpellingLoc(Loc);
-  PresumedLoc MLoc = SM.getPresumedLoc(MSourceLoc);
 
   if (PLoc.isInvalid()) {
     ObjectScope Scope(OF, 0);
@@ -581,7 +662,11 @@ void ASTExporter<ATDWriter>::dumpSourceLocation(SourceLocation Loc) {
                   !SM.isWrittenInCommandLineFile(MSourceLoc) &&
                   !SM.isWrittenInScratchSpace(MSourceLoc);
   int macro_fields_count = is_macro;
+  // Only a macro location is read below, and computing one is as costly as the
+  // location above.
+  PresumedLoc MLoc;
   if (is_macro) {
+    MLoc = getPresumedLocFast(MSourceLoc);
     if (strcmp(MLoc.getFilename(), LastMacroLocFilename) != 0) {
       is_different_macro_file = true;
       macro_fields_count += 2;
