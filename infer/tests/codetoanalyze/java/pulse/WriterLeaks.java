@@ -150,7 +150,7 @@ public class WriterLeaks {
     }
   }
 
-  public void FN_pipedWriterNotClosedAfterConnectBad(PipedReader reader) {
+  public void pipedWriterNotClosedAfterConnectBad(PipedReader reader) {
     PipedWriter writer;
     try {
       writer = new PipedWriter();

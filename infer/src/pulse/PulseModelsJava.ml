@@ -821,6 +821,20 @@ let matchers : matcher list =
     $+...$--> Resource.allocate ~exn_class_name:"java.io.IOException"
     |> with_non_disj
   ; +map_context_tenv
+       (PatternMatch.Java.implements_one_of ["java.io.PipedReader"; "java.io.PipedWriter"])
+    &:: "<init>" <>$ capt_arg_payload
+    $--> (fun this -> Resource.allocate this)
+    |> with_non_disj
+  ; +map_context_tenv
+       (PatternMatch.Java.implements_one_of
+          [ "java.io.PipedInputStream"
+          ; "java.io.PipedOutputStream"
+          ; "java.io.PipedReader"
+          ; "java.io.PipedWriter" ] )
+    &:: "connect" <>$ any_arg
+    $+...$--> Resource.use ~exn_class_name:"java.io.IOException"
+    |> with_non_disj
+  ; +map_context_tenv
        (PatternMatch.Java.implements_one_of ["java.net.ServerSocket"; "java.net.Socket"])
     &:: "<init>" <>$ capt_arg_payload
     $+...$--> Resource.allocate ~exn_class_name:"java.io.IOException"
