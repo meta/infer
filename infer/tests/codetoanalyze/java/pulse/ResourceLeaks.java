@@ -432,6 +432,16 @@ public class ResourceLeaks {
     }
   }
 
+  public void pipedInputStreamNotClosedAfterConnectBad(PipedOutputStream pout) {
+    PipedInputStream pin;
+    try {
+      pin = new PipedInputStream();
+      pin.connect(pout);
+      pin.close();
+    } catch (IOException e) {
+    }
+  }
+
   // PipedOutputStream tests
 
   public void pipedOutputStreamNotClosedAfterWriteBad() {
@@ -453,6 +463,16 @@ public class ResourceLeaks {
     } catch (IOException e) {
     } finally {
       if (pout != null) pout.close();
+    }
+  }
+
+  public void pipedOutputStreamNotClosedAfterConnectBad(PipedInputStream pin) {
+    PipedOutputStream pout;
+    try {
+      pout = new PipedOutputStream();
+      pout.connect(pin);
+      pout.close();
+    } catch (IOException e) {
     }
   }
 

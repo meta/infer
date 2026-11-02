@@ -166,7 +166,7 @@ public class ReaderLeaks {
     }
   }
 
-  public void pipedReaderNotClosedAfterConnectOk(PipedWriter writer) {
+  public void pipedReaderNotClosedAfterReadBad(PipedWriter writer) {
     PipedReader reader;
     try {
       reader = new PipedReader();
@@ -177,7 +177,7 @@ public class ReaderLeaks {
     }
   }
 
-  public void FN_pipedReaderNotConnectedBad(PipedWriter writer) {
+  public void pipedReaderNotConnectedBad(PipedWriter writer) {
     PipedReader reader;
     try {
       reader = new PipedReader();
