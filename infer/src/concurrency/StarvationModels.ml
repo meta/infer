@@ -134,7 +134,14 @@ let may_block =
       ; { default with
           classname= "android.os.AsyncTask"
         ; methods= ["get"]
-        ; actuals_pred= no_args_or_excessive_timeout_and_timeunit } ] )
+        ; actuals_pred= no_args_or_excessive_timeout_and_timeunit }
+        (* the timed forms are named differently - [tryAcquire], [poll] and [offer] - so they are
+           not matched here and no timeout predicate is needed to let them through *)
+      ; { default with
+          classname= "java.util.concurrent.Semaphore"
+        ; methods= ["acquire"; "acquireUninterruptibly"] }
+      ; {default with classname= "java.util.concurrent.BlockingQueue"; methods= ["take"; "put"]}
+      ; {default with classname= "android.os.SystemClock"; methods= ["sleep"]} ] )
 
 
 let may_do_ipc =
