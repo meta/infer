@@ -306,6 +306,16 @@ include struct
     @@ fun () -> check_valid mode @@> Basic.free FClose fd @@> ret_alloc_or_null FileDescriptor
 
 
+  (* the returned stream owns [fd] and [closedir] releases it, but a failure leaves [fd] with the
+     caller *)
+  let fdopendir fd : model =
+    start_model
+    @@ fun () ->
+    disj
+      [ assign_ret @= null
+      ; Basic.free FClose fd @@> Basic.return_alloc_not_null FileDescriptor None ~initialize:true ]
+
+
   let opendir path : model =
     start_model @@ fun () -> check_valid path @@> ret_alloc_or_null FileDescriptor
 
@@ -638,6 +648,7 @@ let matchers : matcher list =
     $--> compose1 (ignore_arg @@ start_model @@ null_or_nonneg_non_det_ret) taint_ret_from_arg
   ; -"fclose" <>$ capt_arg $--> fclose
   ; -"fdopen" <>$ capt_arg $+ capt_arg_payload $--> fdopen
+  ; -"fdopendir" <>$ capt_arg $--> fdopendir
   ; -"feof" <>$ capt_arg_payload $--> compose1 valid_arg (ignore_arg non_det_ret)
   ; -"ferror" <>$ capt_arg_payload $--> compose1 valid_arg (ignore_arg non_det_ret)
   ; -"fgetc" <>$ capt_arg_payload
