@@ -5,8 +5,8 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-// The compilation command of this file has an unknown flag, so clang does not
-// parse the file and nothing in it is captured.
+// Two unknown flags produce separate driver errors. Parallel capture must report
+// this command as failed even when it keeps going with the other files.
 
 void null_dereference_in_file_not_captured() {
   int* p = 0;

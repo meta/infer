@@ -5,7 +5,7 @@
       "file" : "compiles.c"
    },
    {
-      "command" : "clang -c --not-a-clang-flag bad_flag.c",
+      "command" : "clang -c --not-a-clang-flag --another-invalid-clang-flag bad_flag.c",
       "directory" : "%pwd%/../codetoanalyze/clang_compilation_db_failures",
       "file" : "bad_flag.c"
    },

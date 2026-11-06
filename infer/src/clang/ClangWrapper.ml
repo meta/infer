@@ -182,15 +182,24 @@ let s fmt l = match l with [_] -> () | [] | _ :: _ :: _ -> F.pp_print_char fmt '
 let exec_in_parallel ~prog ~args commands =
   L.progress "Starting parallel capture for %d command%a@\n%!" (List.length commands) s commands ;
   let tasks () = TaskGenerator.of_list ~finish:TaskGenerator.finish_always_none commands in
-  ProcessPool.create ~tasks ~jobs:Config.jobs ~child_prologue:ignore ~child_epilogue:ignore
-    ~f:(fun command ->
-      !WorkerPoolState.update_status
-        (Some (Mtime_clock.now ()))
-        (status_string_of_action_item command) ;
-      exec_action_item ~prog ~args command ;
-      None )
-    ()
-  |> ProcessPool.run |> ignore
+  (* With keep-going, the pool catches item exceptions and continues, so each worker must
+     remember them until its epilogue for the wrapper to report the compilation as failed. *)
+  let has_failed = ref false in
+  let failures =
+    ProcessPool.create ~tasks ~jobs:Config.jobs ~child_prologue:ignore
+      ~child_epilogue:(fun _ -> !has_failed)
+      ~f:(fun command ->
+        !WorkerPoolState.update_status
+          (Some (Mtime_clock.now ()))
+          (status_string_of_action_item command) ;
+        ( try exec_action_item ~prog ~args command
+          with exn -> IExn.reraise_after exn ~f:(fun () -> has_failed := true) ) ;
+        None )
+      ()
+    |> ProcessPool.run
+  in
+  if Array.exists failures ~f:(function Some failed -> failed | None -> true) then
+    L.(die ExternalError) "Parallel clang invocation failed"
 
 
 let exec_all_commands ~prog ~args commands =
