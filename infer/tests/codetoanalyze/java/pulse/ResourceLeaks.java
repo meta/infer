@@ -628,37 +628,92 @@ public class ResourceLeaks {
   }
 
   // Socket InputStream tests
+  //
+  // Former FN_socketInputStreamNotClosedBad: getInputStream() was skipped, so the returned stream
+  // was not a tracked resource. The socket is allocated here so it dies with the stream; a
+  // caller-owned socket stays reachable, and closing that socket releases the stream.
 
-  public int FN_socketInputStreamNotClosedBad(Socket socket) throws IOException {
+  public int socketInputStreamNotClosedBad() throws IOException {
+    Socket socket = new Socket();
     InputStream stream = socket.getInputStream();
     return stream.read();
   }
 
   public void socketInputStreamClosedOk() throws IOException {
     Socket socket = new Socket();
-    InputStream stream = socket.getInputStream();
     try {
+      InputStream stream = socket.getInputStream();
       stream.close();
-    } catch (Exception e) {
+    } finally {
+      socket.close();
     }
-    socket.close();
+  }
+
+  public void socketInputStreamClosedByStreamOk() throws IOException {
+    Socket socket = new Socket();
+    InputStream stream = socket.getInputStream();
+    stream.close();
+  }
+
+  public void socketInputStreamClosedBySocketOk() throws IOException {
+    Socket socket = new Socket();
+    try {
+      InputStream stream = socket.getInputStream();
+      ignore(stream);
+    } finally {
+      socket.close();
+    }
+  }
+
+  public int socketInputStreamTryWithResourcesOk() throws IOException {
+    try (Socket socket = new Socket()) {
+      InputStream stream = socket.getInputStream();
+      return stream.read();
+    }
   }
 
   // Socket OutputStream tests
+  //
+  // Former FN_socketOutputStreamNotClosedBad: getOutputStream() was skipped, so the returned
+  // stream was not a tracked resource.
 
-  public void FN_socketOutputStreamNotClosedBad(Socket socket) throws IOException {
+  public void socketOutputStreamNotClosedBad() throws IOException {
+    Socket socket = new Socket();
     OutputStream stream = socket.getOutputStream();
     stream.write(10);
   }
 
   public void socketOutputStreamClosedOk() throws IOException {
     Socket socket = new Socket();
-    OutputStream stream = socket.getOutputStream();
     try {
+      OutputStream stream = socket.getOutputStream();
       stream.close();
-    } catch (Exception e) {
+    } finally {
+      socket.close();
     }
-    socket.close();
+  }
+
+  public void socketOutputStreamClosedByStreamOk() throws IOException {
+    Socket socket = new Socket();
+    OutputStream stream = socket.getOutputStream();
+    stream.close();
+  }
+
+  public void socketOutputStreamClosedBySocketOk() throws IOException {
+    Socket socket = new Socket();
+    try {
+      OutputStream stream = socket.getOutputStream();
+      ignore(stream);
+    } finally {
+      socket.close();
+    }
+  }
+
+  public void socketOutputStreamTryWithResourcesOk() throws IOException {
+    try (Socket socket = new Socket()) {
+      OutputStream stream = socket.getOutputStream();
+      stream.write(10);
+    }
   }
 
   // ServerSocket tests

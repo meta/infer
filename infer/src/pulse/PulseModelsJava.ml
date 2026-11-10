@@ -215,6 +215,36 @@ module Resource = struct
     PulseOperations.write_id ret_id channel astate
 
 
+  (* [Socket.getInputStream] and [Socket.getOutputStream] share the socket's lifetime: closing the
+     stream closes the socket, and closing the socket closes the stream. Allocate the returned
+     stream as a resource and point [delegated_release] both ways, so either [close] releases both.
+     The stream stays reachable while the socket does, so the leak is reported when the socket
+     becomes unreachable. *)
+  let socket_stream ~stream_class_name socket : model_no_non_disj =
+   fun ({callee_procname; path; location; ret= ret_id, _} as model_data) astate ->
+    let allocator = Attribute.JavaResource (JavaClassName.from_string stream_class_name) in
+    let desc = Procname.to_simplified_string ~withclass:true callee_procname in
+    let alloc_state =
+      let<**> astate =
+        Basic.alloc_not_null ~desc allocator None ~initialize:true model_data astate
+      in
+      match PulseOperations.read_id ret_id astate with
+      | None ->
+          Basic.ok_continue astate
+      | Some stream ->
+          let<*> astate =
+            write_field path PulseOperations.ModeledField.delegated_release socket location stream
+              astate
+          in
+          let<+> astate =
+            write_field path PulseOperations.ModeledField.delegated_release stream location socket
+              astate
+          in
+          astate
+    in
+    alloc_state
+
+
   (* Common java.sql.Connection calls that do not close the connection. Left unknown, any of them
      makes Pulse stop tracking the connection (#2111). *)
   let jdbc_connection_usage_modeled =
@@ -880,9 +910,13 @@ let matchers : matcher list =
     &::+ (fun _ proc_name_str -> StringSet.mem proc_name_str Resource.zip_codec_release)
     <>$ capt_arg_payload $--> Resource.release_no_exception |> with_non_disj
   ; +map_context_tenv (PatternMatch.Java.implements "java.net.Socket")
-    &:: "getOutputStream" <>$ any_arg $--> Basic.skip |> with_non_disj
+    &:: "getOutputStream" <>$ capt_arg_payload
+    $--> Resource.socket_stream ~stream_class_name:"java.io.OutputStream"
+    |> with_non_disj
   ; +map_context_tenv (PatternMatch.Java.implements "java.net.Socket")
-    &:: "getInputStream" <>$ any_arg $--> Basic.skip |> with_non_disj
+    &:: "getInputStream" <>$ capt_arg_payload
+    $--> Resource.socket_stream ~stream_class_name:"java.io.InputStream"
+    |> with_non_disj
   ; +map_context_tenv (PatternMatch.Java.implements "java.net.ServerSocket")
     &:: "accept" <>$ any_arg $--> Basic.skip |> with_non_disj
   ; +map_context_tenv
