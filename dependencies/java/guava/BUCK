@@ -1,6 +1,6 @@
 prebuilt_jar(
     name = 'guava',
-    binary_jar = 'guava-23.0.jar',
+    binary_jar = 'guava-24.1.1-jre.jar',
     visibility = [
         'PUBLIC'
     ]

@@ -10,7 +10,7 @@ include $(ROOT_DIR)/Makefile.config
 ANDROID = $(JAVA_LIB_DIR)/android/android-23.jar
 ANDROIDSUPPORT = $(DEPENDENCIES_DIR)/java/android/support/v4/android-support-v4.jar
 ANDROIDX_COLLECTION = $(JAVA_LIB_DIR)/androidx/collection-1.1.0.jar
-GUAVA = $(DEPENDENCIES_DIR)/java/guava/guava-23.0.jar
+GUAVA = $(DEPENDENCIES_DIR)/java/guava/guava-24.1.1-jre.jar
 INJECT = $(DEPENDENCIES_DIR)/java/jsr-330/javax.inject.jar
 JACKSON = $(DEPENDENCIES_DIR)/java/jackson/jackson-2.2.3.jar
 JSR305 = $(DEPENDENCIES_DIR)/java/jsr-305/jsr305.jar
