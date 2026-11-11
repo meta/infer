@@ -68,7 +68,7 @@ jobs:
             Out-Default
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - run: ./build-infer.sh --yes --user-opam-switch java
+      - run: ./build-infer.sh --yes --user-opam-switch java python
       - run: make devsetup
       - run: scripts/check_opam_lock.sh opam/infer.opam.locked opam/ocamlformat.opam.locked
       - run: make -C infer/src clean
