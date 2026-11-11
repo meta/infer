@@ -69,10 +69,23 @@ public class ReaderLeaks {
     }
   }
 
-  public void FN_tryWithBufferReaderWrapperBad(File file) throws IOException {
+  // Former FN: readLine was unknown, so this unclosed wrapper was not tracked.
+  public void tryWithBufferReaderWrapperBad(File file) throws IOException {
     try (InputStreamReader inputStreamReader = new InputStreamReader(new FileInputStream(file))) {
       BufferedReader reader = new BufferedReader(inputStreamReader);
       ignore(reader.readLine());
+    }
+  }
+
+  // readLine may throw IOException and does not close the reader.
+  public void bufferedReaderNotClosedAfterReadLineBad() throws IOException {
+    BufferedReader reader = new BufferedReader(new FileReader("testing.txt"));
+    reader.readLine();
+  }
+
+  public void bufferedReaderClosedAfterReadLineOk() throws IOException {
+    try (BufferedReader reader = new BufferedReader(new FileReader("testing.txt"))) {
+      reader.readLine();
     }
   }
 

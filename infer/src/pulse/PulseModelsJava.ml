@@ -315,6 +315,32 @@ module Resource = struct
 
   let reader_resource_usage_modeled_do_not_throws = StringSet.of_list ["mark"; "markSupported"]
 
+  (* [BufferedReader.readLine] returns null at end of input and may throw [IOException]. Left
+     unknown, Pulse does not invalidate that null, so dereferencing the result is missed (#2109),
+     and the reader stops being tracked. *)
+  let read_line : model_no_non_disj =
+   fun ({path; location; ret= ret_id, _} as model_data) astate ->
+    let event = Hist.call_event path location "java.io.BufferedReader.readLine" in
+    let hist = Hist.single_event event in
+    let null_val = AbstractValue.mk_fresh () in
+    let line_val = AbstractValue.mk_fresh () in
+    let null_state =
+      let<++> astate = PulseArithmetic.and_eq_int null_val IntLit.zero astate in
+      let astate = PulseOperations.write_id ret_id (null_val, hist) astate in
+      PulseOperations.invalidate path
+        (StackAddress (Var.of_id ret_id, hist))
+        location (ConstantDereference IntLit.zero) (null_val, hist) astate
+    in
+    let line_state =
+      let<++> astate = PulseArithmetic.and_positive line_val astate in
+      PulseOperations.write_id ret_id (line_val, hist) astate
+    in
+    let exn_state =
+      call_may_throw_exception (JavaClassName.from_string "java.io.IOException") model_data astate
+    in
+    null_state @ line_state @ exn_state
+
+
   let writer_resource_usage_modeled = StringSet.of_list ["flush"; "write"]
 
   (* PrintWriter print/println/printf/format do not throw IOException. Without models,
@@ -1000,6 +1026,8 @@ let matchers : matcher list =
     &::+ (fun _ proc_name_str ->
     StringSet.mem proc_name_str Resource.inputstream_resource_usage_modeled_do_not_throws )
     <>$ any_arg $+...$--> Basic.skip |> with_non_disj
+  ; +map_context_tenv (PatternMatch.Java.implements "java.io.BufferedReader")
+    &:: "readLine" <>$ any_arg $+...$--> Resource.read_line |> with_non_disj
   ; +map_context_tenv (PatternMatch.Java.implements "java.io.Reader")
     &::+ (fun _ proc_name_str ->
     StringSet.mem proc_name_str Resource.reader_resource_usage_modeled_throws_IOException )
