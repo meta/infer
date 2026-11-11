@@ -17,6 +17,7 @@ import com.facebook.infer.annotation.Assertions;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -512,6 +513,20 @@ public class NullPointerExceptions {
     File dir = new File(pathname);
     File[] files = dir.listFiles();
     return files.length; // expect possible NullPointerException as files == null is possible
+  }
+
+  // BufferedReader.readLine returns null at end of input (facebook/infer#2109).
+  int readLineNullDerefBad(BufferedReader reader) throws IOException {
+    String line = reader.readLine();
+    return line.length();
+  }
+
+  int readLineNullCheckedOk(BufferedReader reader) throws IOException {
+    String line = reader.readLine();
+    if (line == null) {
+      return 0;
+    }
+    return line.length();
   }
 
   native Object unknownFunc();
