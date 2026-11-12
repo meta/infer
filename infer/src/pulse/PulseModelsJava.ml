@@ -944,7 +944,9 @@ let matchers : matcher list =
     $--> Resource.socket_stream ~stream_class_name:"java.io.InputStream"
     |> with_non_disj
   ; +map_context_tenv (PatternMatch.Java.implements "java.net.ServerSocket")
-    &:: "accept" <>$ any_arg $--> Basic.skip |> with_non_disj
+    &:: "accept"
+    <>--> Resource.allocate_returned ~exn_class_name:"java.io.IOException" "java.net.Socket"
+    |> with_non_disj
   ; +map_context_tenv
        (PatternMatch.Java.implements_one_of
           [ "java.io.ObjectInputStream"
