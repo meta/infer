@@ -740,6 +740,34 @@ public class ResourceLeaks {
     }
   }
 
+  // Socket returned by ServerSocket.accept() is itself a resource. Closing only the listener
+  // must still report the accepted socket.
+  public void serverSocketAcceptNotClosedBad() throws IOException {
+    ServerSocket listener = new ServerSocket(0);
+    try {
+      Socket socket = listener.accept();
+    } finally {
+      listener.close();
+    }
+  }
+
+  public void serverSocketAcceptClosedOk() throws IOException {
+    ServerSocket listener = new ServerSocket(0);
+    try {
+      Socket socket = listener.accept();
+      socket.close();
+    } finally {
+      listener.close();
+    }
+  }
+
+  public void serverSocketAcceptTryWithResourcesOk() throws IOException {
+    try (ServerSocket listener = new ServerSocket(0)) {
+      try (Socket socket = listener.accept()) {
+      }
+    }
+  }
+
   public void FN_serverSocketNotClosedBad() throws IOException {
     ServerSocket listener = new ServerSocket(9090);
     while (true) {
@@ -769,10 +797,14 @@ public class ResourceLeaks {
           out = new PrintWriter(socket.getOutputStream(), true);
           out.println("");
         } finally {
-          if (out != null) {
-            out.close();
+          // PrintWriter.close() may throw; still close the accepted socket.
+          try {
+            if (out != null) {
+              out.close();
+            }
+          } finally {
+            socket.close();
           }
-          socket.close();
         }
       }
     } finally {
