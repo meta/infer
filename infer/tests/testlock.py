@@ -20,6 +20,8 @@ with open(LOCKFILE, "r") as lockfile:
 
     fcntl.flock(fd, fcntl.LOCK_EX)
     try:
-        subprocess.call(args)
+        returncode = subprocess.call(args)
+        # a negative code means the child was killed by that signal; report it as the shell does
+        sys.exit(128 - returncode if returncode < 0 else returncode)
     finally:
         fcntl.flock(fd, fcntl.LOCK_UN)
