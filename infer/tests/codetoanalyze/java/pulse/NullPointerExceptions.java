@@ -509,10 +509,10 @@ public class NullPointerExceptions {
     o.toString();
   }
 
-  int nullListFiles(String pathname) {
+  int listFilesNullDerefBad(String pathname) {
     File dir = new File(pathname);
     File[] files = dir.listFiles();
-    return files.length; // expect possible NullPointerException as files == null is possible
+    return files.length; // null when the path is not a directory (#2109)
   }
 
   // BufferedReader.readLine returns null at end of input (facebook/infer#2109).
@@ -795,5 +795,35 @@ public class NullPointerExceptions {
       b = null;
     }
     b.x = 0;
+  }
+
+  // File.list and listFiles return null when the path is not a directory (facebook/infer#2109).
+  int listFilesNullCheckedOk(String pathname) {
+    File dir = new File(pathname);
+    File[] files = dir.listFiles();
+    if (files == null) {
+      return 0;
+    }
+    return files.length;
+  }
+
+  int listNullDerefBad(String pathname) {
+    File dir = new File(pathname);
+    String[] names = dir.list();
+    return names.length;
+  }
+
+  int listNullCheckedOk(String pathname) {
+    File dir = new File(pathname);
+    String[] names = dir.list();
+    if (names == null) {
+      return 0;
+    }
+    return names.length;
+  }
+
+  int listFilesFilterNullDerefBad(File dir, java.io.FileFilter filter) {
+    File[] files = dir.listFiles(filter);
+    return files.length;
   }
 }
