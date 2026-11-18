@@ -12,8 +12,12 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 
 // Streams returned by the java.nio.file.Files factories (issue #2110)
 public class FilesLeaks {
@@ -72,6 +76,49 @@ public class FilesLeaks {
   public void newBufferedWriterTryWithResourcesOk(Path path) throws IOException {
     try (BufferedWriter writer = Files.newBufferedWriter(path)) {
       writer.write(1);
+    }
+  }
+
+  // Channels from Files.newByteChannel and FileChannel.open are fresh resources. Left unknown,
+  // Pulse never allocates them, so not closing the channel is missed.
+
+  public void newByteChannelNotClosedAfterReadBad(Path path) throws IOException {
+    SeekableByteChannel channel = Files.newByteChannel(path);
+    ByteBuffer buffer = ByteBuffer.allocate(8);
+    channel.read(buffer);
+  }
+
+  public void newByteChannelClosedOk(Path path) throws IOException {
+    SeekableByteChannel channel = Files.newByteChannel(path);
+    try {
+      ByteBuffer buffer = ByteBuffer.allocate(8);
+      channel.read(buffer);
+    } finally {
+      channel.close();
+    }
+  }
+
+  public void newByteChannelTryWithResourcesOk(Path path) throws IOException {
+    try (SeekableByteChannel channel = Files.newByteChannel(path)) {
+      ByteBuffer buffer = ByteBuffer.allocate(8);
+      channel.read(buffer);
+    }
+  }
+
+  public SeekableByteChannel newByteChannelReturnedOk(Path path) throws IOException {
+    return Files.newByteChannel(path);
+  }
+
+  public void fileChannelOpenNotClosedAfterWriteBad(Path path) throws IOException {
+    FileChannel channel = FileChannel.open(path, StandardOpenOption.WRITE);
+    ByteBuffer buffer = ByteBuffer.allocate(8);
+    channel.write(buffer);
+  }
+
+  public void fileChannelOpenTryWithResourcesOk(Path path) throws IOException {
+    try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
+      ByteBuffer buffer = ByteBuffer.allocate(8);
+      channel.read(buffer);
     }
   }
 }
