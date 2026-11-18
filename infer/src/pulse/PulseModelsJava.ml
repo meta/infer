@@ -414,6 +414,17 @@ module Resource = struct
 
   let zip_codec_release = StringSet.of_list ["close"; "end"]
 
+  (* [SeekableByteChannel] reads, writes and repositions. None of them closes the channel, and the
+     ones below may throw [IOException]. Left unknown, any of them makes Pulse drop a channel
+     returned by [Files.newByteChannel] or [FileChannel.open]. [size], [transferTo] and
+     [transferFrom] are not included: channels from [getChannel] delegate to a stream, and modeling
+     those calls changes which delegated stream is still tracked in the existing tests. *)
+  let byte_channel_usage_modeled_throws_IOException =
+    StringSet.of_list ["position"; "read"; "truncate"; "write"]
+
+
+  let byte_channel_usage_modeled = StringSet.of_list ["isOpen"]
+
   let use ~exn_class_name : model_no_non_disj =
     let exn = JavaClassName.from_string exn_class_name in
     fun model_data astate ->
@@ -1067,6 +1078,27 @@ let matchers : matcher list =
     &:: "newBufferedWriter"
     <>--> Resource.allocate_returned ~exn_class_name:"java.io.IOException" "java.io.BufferedWriter"
     |> with_non_disj
+    (* [Files.newByteChannel] and [FileChannel.open] return a fresh channel without a modeled
+     constructor, so the channel was never tracked (same gap as the stream factories, #2110). *)
+  ; +map_context_tenv (PatternMatch.Java.implements "java.nio.file.Files")
+    &:: "newByteChannel"
+    <>--> Resource.allocate_returned ~exn_class_name:"java.io.IOException"
+            "java.nio.channels.SeekableByteChannel"
+    |> with_non_disj
+  ; +map_context_tenv (PatternMatch.Java.implements "java.nio.channels.FileChannel")
+    &:: "open"
+    <>--> Resource.allocate_returned ~exn_class_name:"java.io.IOException"
+            "java.nio.channels.FileChannel"
+    |> with_non_disj
+  ; +map_context_tenv (PatternMatch.Java.implements "java.nio.channels.SeekableByteChannel")
+    &::+ (fun _ proc_name_str ->
+    StringSet.mem proc_name_str Resource.byte_channel_usage_modeled_throws_IOException )
+    <>$ any_arg
+    $+...$--> Resource.use ~exn_class_name:"java.io.IOException"
+    |> with_non_disj
+  ; +map_context_tenv (PatternMatch.Java.implements "java.nio.channels.SeekableByteChannel")
+    &::+ (fun _ proc_name_str -> StringSet.mem proc_name_str Resource.byte_channel_usage_modeled)
+    <>$ any_arg $+...$--> Basic.skip |> with_non_disj
   ; +map_context_tenv (PatternMatch.Java.implements "java.sql.DriverManager")
     &:: "getConnection"
     <>--> Resource.allocate_returned ~exn_class_name:"java.sql.SQLException" "java.sql.Connection"
