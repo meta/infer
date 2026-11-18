@@ -13,6 +13,8 @@ import java.util.zip.CheckedInputStream;
 import java.util.zip.DeflaterInputStream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import javax.crypto.CipherInputStream;
 
 public class FilterInputStreamLeaks {
@@ -266,5 +268,20 @@ public class FilterInputStreamLeaks {
   public void twoLevelWrapperNoLeakOk(File file) throws IOException {
     DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(file)));
     in.close();
+  }
+
+  // getNextEntry does not close the stream. Left unknown, Pulse drops it and misses the leak.
+  public void zipInputStreamNotClosedAfterGetNextEntryBad() throws IOException {
+    ZipInputStream zip = new ZipInputStream(new FileInputStream("file.zip"));
+    zip.getNextEntry();
+  }
+
+  public void zipInputStreamClosedAfterGetNextEntryOk() throws IOException {
+    try (ZipInputStream zip = new ZipInputStream(new FileInputStream("file.zip"))) {
+      ZipEntry entry = zip.getNextEntry();
+      if (entry != null) {
+        zip.closeEntry();
+      }
+    }
   }
 }

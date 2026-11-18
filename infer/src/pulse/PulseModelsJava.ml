@@ -341,6 +341,33 @@ module Resource = struct
     null_state @ line_state @ exn_state
 
 
+  (* [ZipInputStream.getNextEntry] and [JarInputStream.getNextJarEntry] return null when there are
+     no more entries and may throw [IOException]. Left unknown, Pulse misses that null dereference
+     and drops the stream, so a stream that is not closed after the call is not reported. *)
+  let zip_next_entry : model_no_non_disj =
+   fun ({callee_procname; path; location; ret= ret_id, _} as model_data) astate ->
+    let desc = Procname.to_simplified_string ~withclass:true callee_procname in
+    let event = Hist.call_event path location desc in
+    let hist = Hist.single_event event in
+    let null_val = AbstractValue.mk_fresh () in
+    let entry_val = AbstractValue.mk_fresh () in
+    let null_state =
+      let<++> astate = PulseArithmetic.and_eq_int null_val IntLit.zero astate in
+      let astate = PulseOperations.write_id ret_id (null_val, hist) astate in
+      PulseOperations.invalidate path
+        (StackAddress (Var.of_id ret_id, hist))
+        location (ConstantDereference IntLit.zero) (null_val, hist) astate
+    in
+    let entry_state =
+      let<++> astate = PulseArithmetic.and_positive entry_val astate in
+      PulseOperations.write_id ret_id (entry_val, hist) astate
+    in
+    let exn_state =
+      call_may_throw_exception (JavaClassName.from_string "java.io.IOException") model_data astate
+    in
+    null_state @ entry_state @ exn_state
+
+
   let writer_resource_usage_modeled = StringSet.of_list ["flush"; "write"]
 
   (* PrintWriter print/println/printf/format do not throw IOException. Without models,
@@ -943,6 +970,20 @@ let matchers : matcher list =
     &::+ (fun _ proc_name_str ->
     StringSet.mem proc_name_str Resource.zipfile_usage_modeled_throws_IOException )
     <>$ any_arg
+    $+...$--> Resource.use ~exn_class_name:"java.io.IOException"
+    |> with_non_disj
+  ; +map_context_tenv (PatternMatch.Java.implements "java.util.zip.ZipInputStream")
+    &:: "getNextEntry" <>$ any_arg $+...$--> Resource.zip_next_entry |> with_non_disj
+  ; +map_context_tenv (PatternMatch.Java.implements "java.util.jar.JarInputStream")
+    &:: "getNextJarEntry" <>$ any_arg $+...$--> Resource.zip_next_entry |> with_non_disj
+  ; +map_context_tenv
+       (PatternMatch.Java.implements_one_of
+          ["java.util.zip.ZipInputStream"; "java.util.zip.ZipOutputStream"] )
+    &:: "closeEntry" <>$ any_arg
+    $+...$--> Resource.use ~exn_class_name:"java.io.IOException"
+    |> with_non_disj
+  ; +map_context_tenv (PatternMatch.Java.implements "java.util.zip.ZipOutputStream")
+    &:: "putNextEntry" <>$ any_arg
     $+...$--> Resource.use ~exn_class_name:"java.io.IOException"
     |> with_non_disj
   ; +map_context_tenv
