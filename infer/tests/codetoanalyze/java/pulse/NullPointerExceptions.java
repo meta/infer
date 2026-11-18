@@ -26,6 +26,10 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.util.HashMap;
 import java.util.concurrent.locks.Lock;
+import java.util.jar.JarEntry;
+import java.util.jar.JarInputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -527,6 +531,34 @@ public class NullPointerExceptions {
       return 0;
     }
     return line.length();
+  }
+
+  // ZipInputStream.getNextEntry returns null when there are no more entries.
+  int getNextEntryNullDerefBad(ZipInputStream zip) throws IOException {
+    ZipEntry entry = zip.getNextEntry();
+    return entry.getName().length();
+  }
+
+  int getNextEntryNullCheckedOk(ZipInputStream zip) throws IOException {
+    ZipEntry entry = zip.getNextEntry();
+    if (entry == null) {
+      return 0;
+    }
+    return entry.getName().length();
+  }
+
+  // JarInputStream.getNextJarEntry has the same null contract.
+  int getNextJarEntryNullDerefBad(JarInputStream jar) throws IOException {
+    JarEntry entry = jar.getNextJarEntry();
+    return entry.getName().length();
+  }
+
+  int getNextJarEntryNullCheckedOk(JarInputStream jar) throws IOException {
+    JarEntry entry = jar.getNextJarEntry();
+    if (entry == null) {
+      return 0;
+    }
+    return entry.getName().length();
   }
 
   native Object unknownFunc();

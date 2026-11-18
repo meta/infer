@@ -17,6 +17,8 @@ import java.util.zip.CheckedOutputStream;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.InflaterOutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import javax.crypto.CipherOutputStream;
 
 public class FilterOutputStreamLeaks {
@@ -317,6 +319,20 @@ public class FilterOutputStreamLeaks {
     } catch (IOException e) {
     } finally {
       if (printer != null) printer.close();
+    }
+  }
+
+  // putNextEntry and closeEntry do not close the stream. Left unknown, Pulse drops it.
+  public void zipOutputStreamNotClosedAfterPutNextEntryBad() throws IOException {
+    ZipOutputStream zip = new ZipOutputStream(new FileOutputStream("file.zip"));
+    zip.putNextEntry(new ZipEntry("a.txt"));
+    zip.closeEntry();
+  }
+
+  public void zipOutputStreamClosedAfterPutNextEntryOk() throws IOException {
+    try (ZipOutputStream zip = new ZipOutputStream(new FileOutputStream("file.zip"))) {
+      zip.putNextEntry(new ZipEntry("a.txt"));
+      zip.closeEntry();
     }
   }
 }
