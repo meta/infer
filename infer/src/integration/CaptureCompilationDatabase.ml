@@ -24,19 +24,20 @@ let create_cmd (source_file, (compilation_data : CompilationDatabase.compilation
         ["@" ^ arg_file; "-fsyntax-only"; "-fno-builtin"] @ Config.clang_extra_flags } )
 
 
+(** returns [Some ()] when the command failed *)
 let invoke_cmd (source_file, (cmd : CompilationDatabase.compilation_data)) =
   let argv = cmd.executable :: cmd.escaped_arguments in
-  ( InferSubprocess.run ~cwd:cmd.directory ~prog:cmd.executable ~argv ()
+  InferSubprocess.run ~cwd:cmd.directory ~prog:cmd.executable ~argv ()
   |> function
   | Ok () ->
-      ()
+      None
   | Error error ->
       let log_or_die fmt =
         if Config.keep_going then L.debug Capture Quiet fmt else L.die ExternalError fmt
       in
       log_or_die "Error running compilation for '%a': %a:@\n%s@." SourceFile.pp source_file
-        Pp.cli_args argv error ) ;
-  None
+        Pp.cli_args argv error ;
+      Some ()
 
 
 let run_compilation_database compilation_database should_capture_file =
@@ -48,9 +49,15 @@ let run_compilation_database compilation_database should_capture_file =
     "Starting %s %d files@\n%!" Config.clang_frontend_action_string number_of_jobs ;
   L.progress "Starting %s %d files@\n%!" Config.clang_frontend_action_string number_of_jobs ;
   let compilation_commands = List.map ~f:create_cmd compilation_data in
-  let tasks () =
-    TaskGenerator.of_list ~finish:TaskGenerator.finish_always_none compilation_commands
+  let number_of_failures = ref 0 in
+  let failed_files = ref SourceFile.Set.empty in
+  let record_failure failed (source_file, _) =
+    Option.iter failed ~f:(fun () ->
+        incr number_of_failures ;
+        failed_files := SourceFile.Set.add source_file !failed_files ) ;
+    None
   in
+  let tasks () = TaskGenerator.of_list ~finish:record_failure compilation_commands in
   (* no stats to record so [child_epilogue] does nothing and we ignore the return
      {!ProcessPool.run} *)
   let runner =
@@ -59,7 +66,17 @@ let run_compilation_database compilation_database should_capture_file =
   in
   ProcessPool.run runner |> ignore ;
   L.progress "@." ;
-  L.(debug Analysis Medium) "Ran %d jobs" number_of_jobs
+  L.(debug Analysis Medium) "Ran %d jobs" number_of_jobs ;
+  StatsLogging.log_count ~label:"capture.failed_compilation_commands" ~value:!number_of_failures ;
+  if !number_of_failures > 0 then
+    (* report the first failure in the order of the compilation database to be deterministic *)
+    List.find compilation_commands ~f:(fun (source_file, _) ->
+        SourceFile.Set.mem source_file !failed_files )
+    |> Option.iter ~f:(fun (source_file, _) ->
+        L.user_warning
+          "WARNING: %d of %d compilation commands failed, starting with the one for %a.@\n\
+           Their files were captured partially or not at all, see %s for the errors.@."
+          !number_of_failures number_of_jobs SourceFile.pp source_file (ResultsDir.get_path Logs) )
 
 
 let get_compilation_database_files_xcodebuild ~prog ~args =
