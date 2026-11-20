@@ -365,6 +365,76 @@ let ignored_constants =
   IntLitSet.of_list int_lit_constants
 
 
+(** Whether the C++ constructor [pname] only writes to the object it constructs and to its own
+    locals, so that building an object that is never read has no effect. Constructors without a body
+    qualify only when they are compiler-generated. Constructors calling other constructors are
+    followed [depth] levels deep. *)
+let rec constructor_writes_only_to_this ~depth pname =
+  match Procdesc.load pname with
+  | Some pdesc when Procdesc.is_defined pdesc ->
+      depth > 0 && body_writes_only_to_this ~depth pdesc
+  | _ ->
+      Attributes.load pname |> Option.exists ~f:(fun attrs -> attrs.ProcAttributes.is_cpp_implicit)
+
+
+and body_writes_only_to_this ~depth pdesc =
+  let this_ids =
+    Procdesc.fold_instrs pdesc ~init:Ident.Set.empty ~f:(fun ids _node instr ->
+        match instr with
+        | Sil.Load {id; e= Lvar pvar} when Pvar.is_this pvar ->
+            Ident.Set.add id ids
+        | _ ->
+            ids )
+  in
+  let rec is_owned (addr : Exp.t) =
+    match addr with
+    | Lfield ({exp}, _, _) | Lindex (exp, _) | Cast (_, exp) ->
+        is_owned exp
+    | Var id ->
+        Ident.Set.mem id this_ids
+    | Lvar pvar ->
+        not (Pvar.is_global pvar)
+    | _ ->
+        false
+  in
+  let is_pure_builtin pname =
+    List.mem ~equal:Procname.equal
+      [BuiltinDecl.__cast; BuiltinDecl.__infer_skip; BuiltinDecl.__new; BuiltinDecl.__new_array]
+      pname
+  in
+  let instr_writes_only_to_this (instr : Sil.instr) =
+    match instr with
+    | Store {e1} ->
+        is_owned e1
+    | Call (_, Const (Cfun callee), _, _, _) when is_pure_builtin callee ->
+        true
+    | Call (_, Const (Cfun callee), (this_arg, _) :: _, _, _) when Procname.is_constructor callee ->
+        is_owned this_arg && constructor_writes_only_to_this ~depth:(depth - 1) callee
+    | Call _ ->
+        false
+    | Load _ | Prune _ | Metadata _ ->
+        true
+  in
+  Procdesc.fold_instrs pdesc ~init:true ~f:(fun ok _node instr ->
+      ok && instr_writes_only_to_this instr )
+
+
+(** Whether a constructor call with arguments [actuals] copies or moves an object of the same type
+    passed by reference. Such objects are not kept for the effects of their construction, whatever
+    these effects are on the source. *)
+let is_copy_or_move_constructor_call actuals =
+  match actuals with
+  | [ (_, {Typ.desc= Tptr (this_typ, Pk_pointer)})
+    ; (_, {Typ.desc= Tptr (src_typ, (Pk_lvalue_reference | Pk_rvalue_reference))}) ] -> (
+    match (Typ.name this_typ, Typ.name src_typ) with
+    | Some this_name, Some src_name ->
+        Typ.Name.equal this_name src_name
+    | _ ->
+        false )
+  | _ ->
+      false
+
+
 let checker {IntraproceduralAnalysis.proc_desc; err_log} =
   let passed_by_ref_invariant_map = get_passed_by_ref_invariant_map proc_desc in
   let cfg = CFG.from_pdesc proc_desc in
@@ -430,10 +500,14 @@ let checker {IntraproceduralAnalysis.proc_desc; err_log} =
     | Sil.Store {e1= Lvar pvar; typ; e2= rhs_exp; loc}
       when should_report pvar typ live_vars passed_by_ref_vars && not (is_sentinel_exp rhs_exp) ->
         log_report pvar typ loc
-    | Sil.Call (_, e_fun, (arg, typ) :: _, loc, _) -> (
+    | Sil.Call (_, e_fun, ((arg, typ) :: _ as actuals), loc, _) -> (
       match (Exp.ignore_cast e_fun, Exp.ignore_cast arg) with
       | Exp.Const (Cfun (Procname.ObjC_Cpp _ as pname)), Exp.Lvar pvar
-        when Procname.is_constructor pname && should_report pvar typ live_vars passed_by_ref_vars ->
+        when Procname.is_constructor pname
+             && should_report pvar typ live_vars passed_by_ref_vars
+             && ( Procname.is_objc_method pname
+                || is_copy_or_move_constructor_call actuals
+                || constructor_writes_only_to_this ~depth:3 pname ) ->
           log_report pvar typ loc
       | _, _ ->
           () )
