@@ -379,7 +379,7 @@ DIRECT_TESTS += \
   dotnet_threadsafetyviolation
 
 ifeq ($(BUILD_C_ANALYZERS)+$(BUILD_JAVA_ANALYZERS),yes+yes)
-BUILD_SYSTEMS_TESTS += make utf8_in_pwd waf
+BUILD_SYSTEMS_TESTS += make testlock utf8_in_pwd waf
 endif
 
 ifeq ($(IS_INFER_RELEASE),no)
