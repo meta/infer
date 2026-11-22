@@ -383,7 +383,7 @@ and ty_to_textual_typ crate (rust_ty : Charon.Generated_Types.ty) : Textual.Typ.
   | TArray (ty, _size_exp) ->
       Textual.Typ.Array (ty_to_textual_typ crate ty)
   | TSlice ty ->
-      Textual.Typ.mk_ptr (ty_to_textual_typ crate ty)
+      Textual.Typ.Array (ty_to_textual_typ crate ty)
   | _ ->
       L.user_warning "[WARNING] Unsupported type: @. > %a @." Charon.Generated_Types.pp_ty rust_ty ;
       Textual.Typ.Void
