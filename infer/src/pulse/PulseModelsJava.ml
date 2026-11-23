@@ -425,6 +425,64 @@ module Resource = struct
 
   let byte_channel_usage_modeled = StringSet.of_list ["isOpen"]
 
+  (* [Files.lines], [Files.walk], [Files.find] and [Files.list] return a [Stream] that owns a file
+     or directory handle until [BaseStream.close]. Intermediate and terminal operations do not
+     close it. Left unknown, any of them removes the allocation attribute, so the leak disappears.
+     Intermediate operations are modeled as returning the receiver: a chain such as
+     [lines(path).limit(n)] is still the resource [close] must release. *)
+  let stream_chain_returns_receiver =
+    StringSet.of_list
+      [ "asDoubleStream"
+      ; "asLongStream"
+      ; "boxed"
+      ; "distinct"
+      ; "dropWhile"
+      ; "filter"
+      ; "flatMap"
+      ; "flatMapToDouble"
+      ; "flatMapToInt"
+      ; "flatMapToLong"
+      ; "limit"
+      ; "map"
+      ; "mapMulti"
+      ; "mapMultiToDouble"
+      ; "mapMultiToInt"
+      ; "mapMultiToLong"
+      ; "mapToDouble"
+      ; "mapToInt"
+      ; "mapToLong"
+      ; "mapToObj"
+      ; "onClose"
+      ; "parallel"
+      ; "peek"
+      ; "sequential"
+      ; "skip"
+      ; "sorted"
+      ; "takeWhile"
+      ; "unordered" ]
+
+
+  let stream_usage_modeled =
+    StringSet.of_list
+      [ "allMatch"
+      ; "anyMatch"
+      ; "collect"
+      ; "count"
+      ; "findAny"
+      ; "findFirst"
+      ; "forEach"
+      ; "forEachOrdered"
+      ; "isParallel"
+      ; "iterator"
+      ; "max"
+      ; "min"
+      ; "noneMatch"
+      ; "reduce"
+      ; "spliterator"
+      ; "toArray"
+      ; "toList" ]
+
+
   let use ~exn_class_name : model_no_non_disj =
     let exn = JavaClassName.from_string exn_class_name in
     fun model_data astate ->
@@ -1107,6 +1165,36 @@ let matchers : matcher list =
     <>--> Resource.allocate_returned ~exn_class_name:"java.io.IOException"
             "java.nio.file.DirectoryStream"
     |> with_non_disj
+    (* [Files.lines], [Files.walk], [Files.find] and [Files.list] return a fresh stream without a
+       modeled constructor, so the stream was never tracked (same gap as the other [Files]
+       factories, #2110). [BaseStream.close] is [AutoCloseable], not [Closeable], so the existing
+       [close] model does not release it. *)
+  ; +map_context_tenv (PatternMatch.Java.implements "java.nio.file.Files")
+    &:: "lines"
+    <>--> Resource.allocate_returned ~exn_class_name:"java.io.IOException" "java.util.stream.Stream"
+    |> with_non_disj
+  ; +map_context_tenv (PatternMatch.Java.implements "java.nio.file.Files")
+    &:: "walk"
+    <>--> Resource.allocate_returned ~exn_class_name:"java.io.IOException" "java.util.stream.Stream"
+    |> with_non_disj
+  ; +map_context_tenv (PatternMatch.Java.implements "java.nio.file.Files")
+    &:: "find"
+    <>--> Resource.allocate_returned ~exn_class_name:"java.io.IOException" "java.util.stream.Stream"
+    |> with_non_disj
+  ; +map_context_tenv (PatternMatch.Java.implements "java.nio.file.Files")
+    &:: "list"
+    <>--> Resource.allocate_returned ~exn_class_name:"java.io.IOException" "java.util.stream.Stream"
+    |> with_non_disj
+  ; +map_context_tenv (PatternMatch.Java.implements "java.util.stream.BaseStream")
+    &:: "close" <>$ capt_arg_payload $--> Resource.release_no_exception |> with_non_disj
+  ; +map_context_tenv (PatternMatch.Java.implements "java.util.stream.BaseStream")
+    &::+ (fun _ proc_name_str -> StringSet.mem proc_name_str Resource.stream_chain_returns_receiver)
+    <>$ capt_arg_payload
+    $+...$--> Basic.id_first_arg ~desc:"java.util.stream.BaseStream"
+    |> with_non_disj
+  ; +map_context_tenv (PatternMatch.Java.implements "java.util.stream.BaseStream")
+    &::+ (fun _ proc_name_str -> StringSet.mem proc_name_str Resource.stream_usage_modeled)
+    <>$ any_arg $+...$--> Basic.skip |> with_non_disj
   ; +map_context_tenv (PatternMatch.Java.implements "java.sql.DriverManager")
     &:: "getConnection"
     <>--> Resource.allocate_returned ~exn_class_name:"java.sql.SQLException" "java.sql.Connection"
