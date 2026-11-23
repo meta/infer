@@ -20,7 +20,7 @@ typedef int (^MyBlock)(int);
 
 @implementation A
 
-+ (void)FP_block_captured_var_ok {
++ (void)block_captured_var_ok {
   const int captured = 3;
   [C use_block:^(int param) { // `captured` is not in the list of captured
                               // variables in objc++

@@ -32,6 +32,8 @@ codetoanalyze/cpp/liveness/dead_stores.cpp, dead_stores::binaryConditional_bad, 
 codetoanalyze/cpp/liveness/dead_stores.cpp, dead_stores::binaryConditional_bad, 3, DEAD_STORE, no_bucket, ERROR, [Write of unused value (type `dead_stores::X*`)]
 codetoanalyze/cpp/liveness/dead_stores.cpp, dead_stores::binaryConditional_bad, 4, DEAD_STORE, no_bucket, ERROR, [Write of unused value (type `int`)]
 codetoanalyze/cpp/liveness/dead_stores_constexpr.cpp, capture_const_bad, 1, DEAD_STORE, no_bucket, ERROR, [Write of unused value (type `int`)]
+codetoanalyze/cpp/liveness/dead_stores_constexpr.cpp, const_int_shadowed_in_lambda_bad, 1, DEAD_STORE, no_bucket, ERROR, [Write of unused value (type `int`)]
+codetoanalyze/cpp/liveness/dead_stores_constexpr.cpp, unused_const_int_bad, 0, DEAD_STORE, no_bucket, ERROR, [Write of unused value (type `int`)]
 codetoanalyze/cpp/liveness/non_type_template_param.cpp, X<3>::isZeroBad, 1, DEAD_STORE, no_bucket, ERROR, [Write of unused value (type `int`)]
 codetoanalyze/cpp/liveness/non_type_template_param.cpp, X<7>::isZeroBad, 1, DEAD_STORE, no_bucket, ERROR, [Write of unused value (type `int`)]
 codetoanalyze/cpp/liveness/non_type_template_param.cpp, instanciateTemplateBad, 3, DEAD_STORE, no_bucket, ERROR, [Write of unused value (type `int`)]

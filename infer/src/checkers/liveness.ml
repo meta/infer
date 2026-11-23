@@ -435,6 +435,52 @@ let is_copy_or_move_constructor_call actuals =
       false
 
 
+(** Names of the program variables that the bodies of the closures created in [proc_desc], or in
+    closures nested in them, read without binding them. A C++ lambda reads a constant of the
+    enclosing procedure without capturing it when the read is not an odr-use, so that read only
+    appears in the lambda's body. *)
+let names_read_by_closures proc_desc =
+  let fold_exps pdesc ~init ~f =
+    Procdesc.fold_instrs pdesc ~init ~f:(fun acc _node instr ->
+        List.fold (Sil.exps_of_instr instr) ~init:acc ~f )
+  in
+  let closures_of pdesc =
+    fold_exps pdesc ~init:Procname.Set.empty ~f:(fun acc exp ->
+        Exp.closures exp
+        |> Sequence.fold ~init:acc ~f:(fun acc {Exp.name} -> Procname.Set.add name acc) )
+  in
+  let rec free_names ~ancestors closure_name =
+    if Procname.Set.mem closure_name ancestors then Mangled.Set.empty
+    else
+      match Procdesc.load closure_name with
+      | None ->
+          Mangled.Set.empty
+      | Some pdesc ->
+          let ancestors = Procname.Set.add closure_name ancestors in
+          let read =
+            fold_exps pdesc ~init:Mangled.Set.empty ~f:(fun acc exp ->
+                Exp.program_vars exp
+                |> Sequence.fold ~init:acc ~f:(fun acc pvar ->
+                    Mangled.Set.add (Pvar.get_name pvar) acc ) )
+          in
+          let read =
+            Procname.Set.fold
+              (fun nested acc -> Mangled.Set.union acc (free_names ~ancestors nested))
+              (closures_of pdesc) read
+          in
+          let bound =
+            List.map (Procdesc.get_formals pdesc) ~f:fst3
+            @ List.map (Procdesc.get_locals pdesc) ~f:(fun {ProcAttributes.name} -> name)
+            @ List.map (Procdesc.get_captured pdesc) ~f:(fun {CapturedVar.pvar} ->
+                Pvar.get_name pvar )
+          in
+          Mangled.Set.diff read (Mangled.Set.of_list bound)
+  in
+  Procname.Set.fold
+    (fun closure acc -> Mangled.Set.union acc (free_names ~ancestors:Procname.Set.empty closure))
+    (closures_of proc_desc) Mangled.Set.empty
+
+
 let checker {IntraproceduralAnalysis.proc_desc; err_log} =
   let passed_by_ref_invariant_map = get_passed_by_ref_invariant_map proc_desc in
   let cfg = CFG.from_pdesc proc_desc in
@@ -465,11 +511,20 @@ let checker {IntraproceduralAnalysis.proc_desc; err_log} =
         false
   in
   let locals = Procdesc.get_locals proc_desc in
-  let is_constexpr_or_unused pvar =
+  let find_local pvar =
     List.find locals ~f:(fun local_data ->
         Mangled.equal (Pvar.get_name pvar) local_data.ProcAttributes.name )
+  in
+  let is_constexpr_or_unused pvar =
+    find_local pvar
     |> Option.exists ~f:(fun local ->
         local.ProcAttributes.is_constexpr || local.ProcAttributes.is_declared_unused )
+  in
+  let names_read_by_closures = lazy (names_read_by_closures proc_desc) in
+  let is_const_read_by_closure pvar =
+    find_local pvar
+    |> Option.exists ~f:(fun local -> Typ.is_const local.ProcAttributes.typ.Typ.quals)
+    && Mangled.Set.mem (Pvar.get_name pvar) (Lazy.force names_read_by_closures)
   in
   let is_block_listed pvar =
     match Config.liveness_block_list_var_regex with
@@ -488,7 +543,7 @@ let checker {IntraproceduralAnalysis.proc_desc; err_log} =
          || is_scope_guard typ
          || Procdesc.has_modify_in_block_attr proc_desc pvar
          || Mangled.is_underscore (Pvar.get_name pvar)
-         || is_block_listed pvar )
+         || is_block_listed pvar || is_const_read_by_closure pvar )
   in
   let log_report pvar typ loc =
     let message = F.asprintf "The value written to `%a` is never used" (Pvar.pp Pp.text) pvar in
