@@ -892,3 +892,186 @@ let%expect_test "generic_enum_discriminant" =
 
     declare core::marker::Destruct::drop_in_place(.rust_mut = "mut" .rust_pointer = "pointer" *void) : void
     |}]
+
+
+let%expect_test "generic_payload_projection" =
+  let source =
+    {|
+    struct W<T> {
+        inner: T,
+    }
+
+    enum E {
+        A,
+        B,
+    }
+
+    fn generic_field(w: &W<Option<i32>>) -> i32 {
+        match w.inner {
+            Some(v) => v,
+            None => 0,
+        }
+    }
+
+    fn some_variant(o: Option<E>) -> i32 {
+        match o {
+            Some(E::A) => 1,
+            _ => 0,
+        }
+    }
+
+    fn main() {}
+    |}
+  in
+  test source ;
+  [%expect
+    {|
+    .source_language = "Rust"
+
+    type core::option::Option = {@discriminant: int}
+
+    type core::option::Option@None extends core::option::Option = {@discriminant: int}
+
+    type core::option::Option@Some extends core::option::Option = {@discriminant: int; 0: void}
+
+    type dummy::E = {@discriminant: int}
+
+    type dummy::E@A extends dummy::E = {@discriminant: int}
+
+    type dummy::E@B extends dummy::E = {@discriminant: int}
+
+    type dummy::W = {inner: void}
+
+    define dummy::generic_field(w_1: .rust_mut = "const" .rust_pointer = "reference" *dummy::W<core::option::Option<int>>) : int {
+      local var_0: int, var_2: int, v_3: int
+      #node_0:
+          n0:.rust_mut = "const" .rust_pointer = "reference" *dummy::W<core::option::Option<int>> = load &w_1
+          n1:core::option::Option<int> = load n0.dummy::W.inner
+          n3:.rust_mut = "const" .rust_pointer = "reference" *dummy::W<core::option::Option<int>> = load &w_1
+          store &var_2 <- n3.dummy::W.inner.core::option::Option.@discriminant:int
+          jmp Switch_0__otherwise, Switch_0__0, Switch_0__1
+
+      #Switch_0__0:
+          n4:int = load &var_2
+          prune __sil_eq(n4, 0)
+          jmp node_1
+
+      #Switch_0__1:
+          n5:int = load &var_2
+          prune __sil_eq(n5, 1)
+          jmp node_2
+
+      #Switch_0__otherwise:
+          n6:int = load &var_2
+          prune __sil_lnot(__sil_eq(n6, 0))
+          n7:int = load &var_2
+          prune __sil_lnot(__sil_eq(n7, 1))
+          jmp node_3
+
+      #node_1:
+          store &var_0 <- 0:int
+          n8:int = load &var_0
+          ret n8
+
+      #node_2:
+          n9:.rust_mut = "const" .rust_pointer = "reference" *dummy::W<core::option::Option<int>> = load &w_1
+          n10:int = load n9.dummy::W.inner.core::option::Option@Some.0
+          store &v_3 <- n10:int
+          n11:int = load &v_3
+          store &var_0 <- n11:int
+          n12:int = load &var_0
+          ret n12
+
+      #node_3:
+          throw "Undefined Behaviour"
+
+    }
+
+    define dummy::some_variant(o_1: core::option::Option<dummy::E>) : int {
+      local var_0: int, var_2: int, var_3: int
+      #node_0:
+          store &var_3 <- &o_1.core::option::Option.@discriminant:int
+          jmp Switch_0__otherwise, Switch_0__1
+
+      #Switch_0__1:
+          n0:int = load &var_3
+          prune __sil_eq(n0, 1)
+          jmp node_1
+
+      #Switch_0__otherwise:
+          n1:int = load &var_3
+          prune __sil_lnot(__sil_eq(n1, 1))
+          jmp node_2
+
+      #node_1:
+          store &var_2 <- &o_1.core::option::Option@Some.0.dummy::E.@discriminant:int
+          jmp Switch_1__otherwise, Switch_1__0
+
+      #Switch_1__0:
+          n2:int = load &var_2
+          prune __sil_eq(n2, 0)
+          jmp node_3
+
+      #Switch_1__otherwise:
+          n3:int = load &var_2
+          prune __sil_lnot(__sil_eq(n3, 0))
+          jmp node_2
+
+      #node_2:
+          store &var_0 <- 0:int
+          n4:int = load &var_0
+          ret n4
+
+      #node_3:
+          store &var_0 <- 1:int
+          n5:int = load &var_0
+          ret n5
+
+    }
+
+    define dummy::main() : void {
+      local var_0: void
+      #node_0:
+          store &var_0 <- null:void
+          store &var_0 <- null:void
+          n0:void = load &var_0
+          ret n0
+
+    }
+
+    declare core::marker::Destruct::drop_in_place(.rust_mut = "mut" .rust_pointer = "pointer" *void) : void
+
+    declare core::option::Option::{core::marker::Destruct for core::option::Option<T>[TraitClause@0, TraitClause@1]}::drop_in_place(.rust_mut = "mut" .rust_pointer = "pointer" *core::option::Option<void>) : void
+
+    define dummy::E::{core::marker::Destruct for dummy::E}::drop_in_place(var_1: .rust_mut = "mut" .rust_pointer = "pointer" *dummy::E) : void {
+      local var_0: void, var_2: .rust_mut = "mut" .rust_pointer = "reference" *dummy::E, var_3: int
+      #node_0:
+          store &var_0 <- null:void
+          n0:.rust_mut = "mut" .rust_pointer = "pointer" *dummy::E = load &var_1
+          store &var_2 <- n0:.rust_mut = "mut" .rust_pointer = "reference" *dummy::E
+          n1:.rust_mut = "mut" .rust_pointer = "pointer" *dummy::E = load &var_1
+          n2 = __rust_retag(&var_2, n1, 1)
+          n3:.rust_mut = "mut" .rust_pointer = "reference" *dummy::E = load &var_2
+          store &var_3 <- n3.dummy::E.@discriminant:int
+          jmp Switch_0__otherwise, Switch_0__0
+
+      #Switch_0__0:
+          n4:int = load &var_3
+          prune __sil_eq(n4, 0)
+          jmp node_1
+
+      #Switch_0__otherwise:
+          n5:int = load &var_3
+          prune __sil_lnot(__sil_eq(n5, 0))
+          jmp node_2
+
+      #node_1:
+          n6:void = load &var_0
+          ret n6
+
+      #node_2:
+          n7:void = load &var_0
+          ret n7
+
+    }
+    |}]

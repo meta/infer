@@ -1,0 +1,445 @@
+# Final ULLBC before serialization:
+
+// Full name: core::cmp::Ordering
+#[lang_item("Ordering")]
+pub enum Ordering {
+  Less,
+  Equal,
+  Greater,
+}
+
+// Full name: core::marker::Destruct
+#[lang_item("destruct")]
+pub trait Destruct<Self>
+{
+    fn drop_in_place = core::marker::Destruct::drop_in_place<Self>
+    non-dyn-compatible
+}
+
+// Full name: core::cmp::Ordering::{impl Destruct for Ordering}::drop_in_place
+unsafe fn {impl Destruct for Ordering}::drop_in_place(_1: *mut Ordering)
+= <opaque>
+
+// Full name: core::cmp::Ordering::{impl Destruct for Ordering}
+impl Destruct for Ordering {
+    fn drop_in_place = {impl Destruct for Ordering}::drop_in_place
+    non-dyn-compatible
+}
+
+// Full name: core::marker::MetaSized
+#[lang_item("meta_sized")]
+pub trait MetaSized<Self>
+
+// Full name: core::marker::Sized
+#[lang_item("sized")]
+pub trait Sized<Self>
+{
+    parent_clause0 : [@TraitClause0]: MetaSized<Self>
+    non-dyn-compatible
+}
+
+unsafe fn core::marker::Destruct::drop_in_place<Self>(_1: *mut Self)
+= <opaque>
+
+// Full name: core::option::Option
+#[lang_item("Option")]
+pub enum Option<T>
+where
+    [@TraitClause0]: Sized<T>,
+    [@TraitClause1]: Destruct<T>,
+{
+  None,
+  Some(T),
+}
+
+// Full name: core::option::Option::{impl Destruct for Option<T>[@TraitClause0, @TraitClause1]}::drop_in_place
+unsafe fn {impl Destruct for Option<T>[@TraitClause0, @TraitClause1]}::drop_in_place<T>(_1: *mut Option<T>[@TraitClause0, @TraitClause1])
+where
+    [@TraitClause0]: Sized<T>,
+    [@TraitClause1]: Destruct<T>,
+= <opaque>
+
+// Full name: core::option::Option::{impl Destruct for Option<T>[@TraitClause0, @TraitClause1]}
+impl<T> Destruct for Option<T>[@TraitClause0, @TraitClause1]
+where
+    [@TraitClause0]: Sized<T>,
+    [@TraitClause1]: Destruct<T>,
+{
+    fn drop_in_place = {impl Destruct for Option<T>[@TraitClause0, @TraitClause1]}::drop_in_place<T>[@TraitClause0, @TraitClause1]
+    non-dyn-compatible
+}
+
+// Full name: core::result::Result
+#[lang_item("Result")]
+pub enum Result<T, E>
+where
+    [@TraitClause0]: Sized<T>,
+    [@TraitClause1]: Sized<E>,
+    [@TraitClause2]: Destruct<T>,
+    [@TraitClause3]: Destruct<E>,
+{
+  Ok(T),
+  Err(E),
+}
+
+fn UNIT_METADATA()
+{
+    let _0: (); // return
+
+    bb0: {
+        _0 = ();
+        return;
+    }
+}
+
+const UNIT_METADATA: () = @Fun0()
+
+// Full name: generic_enum_nested::MyErr
+enum MyErr {
+  X,
+  Y,
+}
+
+// Full name: generic_enum_nested::MyErr::{impl Destruct for MyErr}::drop_in_place
+unsafe fn {impl Destruct for MyErr}::drop_in_place(_1: *mut MyErr)
+{
+    let _0: (); // return
+    let _1: *mut MyErr; // arg #1
+    let _2: &'1 mut MyErr; // anonymous local
+    let _3: isize; // anonymous local
+
+    bb0: {
+        storage_live(_2);
+        storage_live(_3);
+        _0 = ();
+        _2 = &mut (*_1);
+        _3 = @discriminant((*_2));
+        switch move _3 -> 0 : isize: bb1, otherwise: bb2;
+    }
+
+    bb1: {
+        return;
+    }
+
+    bb2: {
+        return;
+    }
+}
+
+// Full name: generic_enum_nested::MyErr::{impl Destruct for MyErr}
+impl Destruct for MyErr {
+    fn drop_in_place = {impl Destruct for MyErr}::drop_in_place
+    non-dyn-compatible
+}
+
+// Full name: generic_enum_nested::S
+struct S {
+  x: i32,
+}
+
+// Full name: generic_enum_nested::S::{impl Destruct for S}::drop_in_place
+unsafe fn {impl Destruct for S}::drop_in_place(_1: *mut S)
+{
+    let _0: (); // return
+    let _1: *mut S; // arg #1
+    let _2: &'1 mut S; // anonymous local
+
+    bb0: {
+        storage_live(_2);
+        _0 = ();
+        _2 = &mut (*_1);
+        return;
+    }
+}
+
+// Full name: generic_enum_nested::S::{impl Destruct for S}
+impl Destruct for S {
+    fn drop_in_place = {impl Destruct for S}::drop_in_place
+    non-dyn-compatible
+}
+
+// Full name: generic_enum_nested::W
+struct W<T>
+where
+    [@TraitClause0]: Sized<T>,
+    [@TraitClause1]: Destruct<T>,
+{
+  inner: T,
+}
+
+// Full name: generic_enum_nested::P
+struct P<T>
+where
+    [@TraitClause0]: Sized<T>,
+    [@TraitClause1]: Destruct<T>,
+{
+  T,
+}
+
+// Full name: generic_enum_nested::some_ordering
+fn some_ordering(_1: Option<Ordering>[{built_in impl Sized for Ordering}, {impl Destruct for Ordering}]) -> i32
+{
+    let _0: i32; // return
+    let o_1: Option<Ordering>[{built_in impl Sized for Ordering}, {impl Destruct for Ordering}]; // arg #1
+    let _2: i8; // anonymous local
+    let _3: isize; // anonymous local
+
+    bb0: {
+        storage_live(_2);
+        storage_live(_3);
+        _3 = @discriminant(o_1);
+        switch move _3 -> 1 : isize: bb1, otherwise: bb2;
+    }
+
+    bb1: {
+        _2 = @discriminant((o_1 as variant Option::Some).0);
+        switch move _2 -> -1 : i8: bb3, otherwise: bb2;
+    }
+
+    bb2: {
+        _0 = const 0 : i32;
+        return;
+    }
+
+    bb3: {
+        _0 = const 1 : i32;
+        return;
+    }
+}
+
+// Full name: generic_enum_nested::err_variant
+fn err_variant(_1: Result<i32, MyErr>[{built_in impl Sized for i32}, {built_in impl Sized for MyErr}, {built_in impl Destruct for i32}, {impl Destruct for MyErr}]) -> i32
+{
+    let _0: i32; // return
+    let r_1: Result<i32, MyErr>[{built_in impl Sized for i32}, {built_in impl Sized for MyErr}, {built_in impl Destruct for i32}, {impl Destruct for MyErr}]; // arg #1
+    let _2: isize; // anonymous local
+    let _3: isize; // anonymous local
+
+    bb0: {
+        storage_live(_2);
+        storage_live(_3);
+        _3 = @discriminant(r_1);
+        switch move _3 -> 0 : isize: bb1, 1 : isize: bb2, otherwise: bb3;
+    }
+
+    bb1: {
+        _0 = const 0 : i32;
+        return;
+    }
+
+    bb2: {
+        _2 = @discriminant((r_1 as variant Result::Err).0);
+        switch move _2 -> 0 : isize: bb4, 1 : isize: bb5, otherwise: bb3;
+    }
+
+    bb3: {
+        undefined_behavior;
+    }
+
+    bb4: {
+        _0 = const 1 : i32;
+        return;
+    }
+
+    bb5: {
+        _0 = const 2 : i32;
+        return;
+    }
+}
+
+// Full name: generic_enum_nested::ok_some
+fn ok_some(_1: Result<Option<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}], i32>[{built_in impl Sized for Option<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}]}, {built_in impl Sized for i32}, {impl Destruct for Option<T>[@TraitClause0, @TraitClause1]}<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}], {built_in impl Destruct for i32}]) -> i32
+{
+    let _0: i32; // return
+    let r_1: Result<Option<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}], i32>[{built_in impl Sized for Option<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}]}, {built_in impl Sized for i32}, {impl Destruct for Option<T>[@TraitClause0, @TraitClause1]}<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}], {built_in impl Destruct for i32}]; // arg #1
+    let _2: isize; // anonymous local
+    let _3: isize; // anonymous local
+    let v_4: i32; // local
+
+    bb0: {
+        storage_live(_2);
+        storage_live(_3);
+        _3 = @discriminant(r_1);
+        switch move _3 -> 0 : isize: bb1, otherwise: bb2;
+    }
+
+    bb1: {
+        _2 = @discriminant((r_1 as variant Result::Ok).0);
+        switch move _2 -> 1 : isize: bb3, otherwise: bb2;
+    }
+
+    bb2: {
+        _0 = const 0 : i32;
+        return;
+    }
+
+    bb3: {
+        storage_live(v_4);
+        v_4 = copy ((r_1 as variant Result::Ok).0 as variant Option::Some).0;
+        _0 = copy v_4;
+        storage_dead(v_4);
+        return;
+    }
+}
+
+// Full name: generic_enum_nested::some_some
+fn some_some(_1: Option<Option<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}]>[{built_in impl Sized for Option<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}]}, {impl Destruct for Option<T>[@TraitClause0, @TraitClause1]}<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}]]) -> i32
+{
+    let _0: i32; // return
+    let o_1: Option<Option<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}]>[{built_in impl Sized for Option<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}]}, {impl Destruct for Option<T>[@TraitClause0, @TraitClause1]}<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}]]; // arg #1
+    let _2: isize; // anonymous local
+    let _3: isize; // anonymous local
+    let v_4: i32; // local
+
+    bb0: {
+        storage_live(_2);
+        storage_live(_3);
+        _3 = @discriminant(o_1);
+        switch move _3 -> 1 : isize: bb1, otherwise: bb2;
+    }
+
+    bb1: {
+        _2 = @discriminant((o_1 as variant Option::Some).0);
+        switch move _2 -> 1 : isize: bb3, otherwise: bb2;
+    }
+
+    bb2: {
+        _0 = const 0 : i32;
+        return;
+    }
+
+    bb3: {
+        storage_live(v_4);
+        v_4 = copy ((o_1 as variant Option::Some).0 as variant Option::Some).0;
+        _0 = copy v_4;
+        storage_dead(v_4);
+        return;
+    }
+}
+
+// Full name: generic_enum_nested::some_struct
+fn some_struct<'_0>(_1: &'_0 Option<S>[{built_in impl Sized for S}, {impl Destruct for S}]) -> i32
+{
+    let _0: i32; // return
+    let o_1: &'1 Option<S>[{built_in impl Sized for S}, {impl Destruct for S}]; // arg #1
+    let _2: isize; // anonymous local
+    let x_3: &'3 i32; // local
+
+    bb0: {
+        storage_live(_2);
+        _2 = @discriminant((*o_1));
+        switch move _2 -> 0 : isize: bb1, 1 : isize: bb2, otherwise: bb3;
+    }
+
+    bb1: {
+        _0 = const 0 : i32;
+        return;
+    }
+
+    bb2: {
+        storage_live(x_3);
+        x_3 = &(((*o_1) as variant Option::Some).0).x;
+        _0 = copy (*x_3);
+        storage_dead(x_3);
+        return;
+    }
+
+    bb3: {
+        undefined_behavior;
+    }
+}
+
+// Full name: generic_enum_nested::generic_field
+fn generic_field<'_0>(_1: &'_0 W<Option<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}]>[{built_in impl Sized for Option<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}]}, {impl Destruct for Option<T>[@TraitClause0, @TraitClause1]}<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}]]) -> i32
+{
+    let _0: i32; // return
+    let w_1: &'1 W<Option<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}]>[{built_in impl Sized for Option<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}]}, {impl Destruct for Option<T>[@TraitClause0, @TraitClause1]}<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}]]; // arg #1
+    let _2: isize; // anonymous local
+    let v_3: i32; // local
+
+    bb0: {
+        storage_live(_2);
+        _ = ((*w_1)).inner;
+        _2 = @discriminant(((*w_1)).inner);
+        switch move _2 -> 0 : isize: bb1, 1 : isize: bb2, otherwise: bb3;
+    }
+
+    bb1: {
+        _0 = const 0 : i32;
+        return;
+    }
+
+    bb2: {
+        storage_live(v_3);
+        v_3 = copy (((*w_1)).inner as variant Option::Some).0;
+        _0 = copy v_3;
+        storage_dead(v_3);
+        return;
+    }
+
+    bb3: {
+        undefined_behavior;
+    }
+}
+
+// Full name: generic_enum_nested::generic_tuple_field
+fn generic_tuple_field<'_0>(_1: &'_0 P<Option<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}]>[{built_in impl Sized for Option<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}]}, {impl Destruct for Option<T>[@TraitClause0, @TraitClause1]}<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}]]) -> i32
+{
+    let _0: i32; // return
+    let p_1: &'1 P<Option<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}]>[{built_in impl Sized for Option<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}]}, {impl Destruct for Option<T>[@TraitClause0, @TraitClause1]}<i32>[{built_in impl Sized for i32}, {built_in impl Destruct for i32}]]; // arg #1
+    let _2: isize; // anonymous local
+    let v_3: i32; // local
+
+    bb0: {
+        storage_live(_2);
+        _ = ((*p_1)).0;
+        _2 = @discriminant(((*p_1)).0);
+        switch move _2 -> 0 : isize: bb1, 1 : isize: bb2, otherwise: bb3;
+    }
+
+    bb1: {
+        _0 = const 0 : i32;
+        return;
+    }
+
+    bb2: {
+        storage_live(v_3);
+        v_3 = copy (((*p_1)).0 as variant Option::Some).0;
+        _0 = copy v_3;
+        storage_dead(v_3);
+        return;
+    }
+
+    bb3: {
+        undefined_behavior;
+    }
+}
+
+// Full name: generic_enum_nested::write_generic_field
+fn write_generic_field<'_0>(_1: &'_0 mut W<S>[{built_in impl Sized for S}, {impl Destruct for S}])
+{
+    let _0: (); // return
+    let w_1: &'1 mut W<S>[{built_in impl Sized for S}, {impl Destruct for S}]; // arg #1
+
+    bb0: {
+        _0 = ();
+        (((*w_1)).inner).x = const 1 : i32;
+        _0 = ();
+        return;
+    }
+}
+
+// Full name: generic_enum_nested::main
+fn main()
+{
+    let _0: (); // return
+
+    bb0: {
+        _0 = ();
+        _0 = ();
+        return;
+    }
+}
+
+
+
