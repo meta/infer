@@ -24,6 +24,9 @@ module Pulse : sig
   module Aliases : sig
     (** set of alias sets (Note: list is enough because it is normalised during construction) *)
     type t = HeapPath.t list list [@@deriving equal, compare]
+
+    val merge : t -> t -> t
+    (** union of two sets of alias sets, where alias sets that share a heap path are joined *)
   end
 
   module DynamicTypes : sig

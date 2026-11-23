@@ -1011,9 +1011,16 @@ let call ?disjunct_limit ({InterproceduralAnalysis.analyze_dependency} as analys
             L.d_printfln "Alias specialization of %a failed" Procname.pp callee_pname ;
             (`NoMoreSpecialization, false, AbstractValue.Set.empty)
         | `AliasSpeciationWith alias_specialization ->
-            let specialization =
-              {specialization with Specialization.Pulse.aliases= Some alias_specialization}
+            (* the aliases we have already specialized the callee for still hold in the caller, so
+               keep them: otherwise a callee that needs several aliases at once keeps trading one
+               for another until it is queried again with a specialization it has already been
+               given *)
+            let aliases =
+              Option.value_map specialization.Specialization.Pulse.aliases
+                ~default:alias_specialization ~f:(fun already_specialized ->
+                  Specialization.Pulse.Aliases.merge already_specialized alias_specialization )
             in
+            let specialization = {specialization with Specialization.Pulse.aliases= Some aliases} in
             L.d_printfln "requesting alias specialization %a" Specialization.Pulse.pp specialization ;
             (`MoreSpecialization specialization, false, AbstractValue.Set.empty)
         | `NoAliasSpecializationRequired when Config.is_checker_enabled TreeBorrows -> (

@@ -43,6 +43,21 @@ module Pulse = struct
     let pp fmt aliases =
       let pp_alias fmt alias = Pp.seq ~sep:" = " HeapPath.pp fmt alias in
       Pp.seq ~sep:" && " pp_alias fmt aliases
+
+
+    let merge aliases1 aliases2 =
+      let add_alias aliases alias =
+        let overlapping, disjoint =
+          List.partition_tf aliases ~f:(fun alias' ->
+              List.exists alias' ~f:(fun path -> List.mem alias path ~equal:HeapPath.equal) )
+        in
+        let merged =
+          List.concat (alias :: overlapping) |> List.dedup_and_sort ~compare:HeapPath.compare
+        in
+        merged :: disjoint
+      in
+      List.fold aliases2 ~init:aliases1 ~f:add_alias
+      |> List.sort ~compare:[%compare: HeapPath.t list]
   end
 
   module DynamicTypes = struct
