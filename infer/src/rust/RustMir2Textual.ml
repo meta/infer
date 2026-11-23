@@ -618,7 +618,8 @@ let mk_exp_from_rvalue ~loc crate (rvalue : Charon.Generated_Expressions.rvalue)
       let typename =
         match typ with
         | Textual.Typ.Struct typename ->
-            typename
+            (* enums are declared without type arguments, see [mk_typedesc] *)
+            {typename with args= []}
         | _ ->
             L.die InternalError
               "[ERROR] Could not construct Discriminant field of non struct type: @. > %a @."

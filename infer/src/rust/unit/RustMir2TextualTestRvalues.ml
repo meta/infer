@@ -756,3 +756,139 @@ let%expect_test "enum" =
 
     }
     |}]
+
+
+let%expect_test "generic_enum_discriminant" =
+  let source =
+    {|
+    fn opt_match(o: Option<i32>) -> i32 {
+        match o {
+            Some(v) => v,
+            None => 0,
+        }
+    }
+
+    fn res_match(r: Result<i32, i32>) -> i32 {
+        match r {
+            Ok(v) => v,
+            Err(e) => e,
+        }
+    }
+
+    fn main() {}
+    |}
+  in
+  test source ;
+  [%expect
+    {|
+    .source_language = "Rust"
+
+    type core::option::Option = {@discriminant: int}
+
+    type core::option::Option@None extends core::option::Option = {@discriminant: int}
+
+    type core::option::Option@Some extends core::option::Option = {@discriminant: int; 0: void}
+
+    type core::result::Result = {@discriminant: int}
+
+    type core::result::Result@Err extends core::result::Result = {@discriminant: int; 0: void}
+
+    type core::result::Result@Ok extends core::result::Result = {@discriminant: int; 0: void}
+
+    define dummy::opt_match(o_1: core::option::Option<int>) : int {
+      local var_0: int, var_2: int, v_3: int
+      #node_0:
+          store &var_2 <- &o_1.core::option::Option.@discriminant:int
+          jmp Switch_0__otherwise, Switch_0__0, Switch_0__1
+
+      #Switch_0__0:
+          n0:int = load &var_2
+          prune __sil_eq(n0, 0)
+          jmp node_1
+
+      #Switch_0__1:
+          n1:int = load &var_2
+          prune __sil_eq(n1, 1)
+          jmp node_2
+
+      #Switch_0__otherwise:
+          n2:int = load &var_2
+          prune __sil_lnot(__sil_eq(n2, 0))
+          n3:int = load &var_2
+          prune __sil_lnot(__sil_eq(n3, 1))
+          jmp node_3
+
+      #node_1:
+          store &var_0 <- 0:int
+          n4:int = load &var_0
+          ret n4
+
+      #node_2:
+          n5:int = load &o_1.core::option::Option@Some.0
+          store &v_3 <- n5:int
+          n6:int = load &v_3
+          store &var_0 <- n6:int
+          n7:int = load &var_0
+          ret n7
+
+      #node_3:
+          throw "Undefined Behaviour"
+
+    }
+
+    define dummy::res_match(r_1: core::result::Result<int,int>) : int {
+      local var_0: int, var_2: int, v_3: int, e_4: int
+      #node_0:
+          store &var_2 <- &r_1.core::result::Result.@discriminant:int
+          jmp Switch_0__otherwise, Switch_0__0, Switch_0__1
+
+      #Switch_0__0:
+          n0:int = load &var_2
+          prune __sil_eq(n0, 0)
+          jmp node_1
+
+      #Switch_0__1:
+          n1:int = load &var_2
+          prune __sil_eq(n1, 1)
+          jmp node_2
+
+      #Switch_0__otherwise:
+          n2:int = load &var_2
+          prune __sil_lnot(__sil_eq(n2, 0))
+          n3:int = load &var_2
+          prune __sil_lnot(__sil_eq(n3, 1))
+          jmp node_3
+
+      #node_1:
+          n4:int = load &r_1.core::result::Result@Ok.0
+          store &v_3 <- n4:int
+          n5:int = load &v_3
+          store &var_0 <- n5:int
+          n6:int = load &var_0
+          ret n6
+
+      #node_2:
+          n7:int = load &r_1.core::result::Result@Err.0
+          store &e_4 <- n7:int
+          n8:int = load &e_4
+          store &var_0 <- n8:int
+          n9:int = load &var_0
+          ret n9
+
+      #node_3:
+          throw "Undefined Behaviour"
+
+    }
+
+    define dummy::main() : void {
+      local var_0: void
+      #node_0:
+          store &var_0 <- null:void
+          store &var_0 <- null:void
+          n0:void = load &var_0
+          ret n0
+
+    }
+
+    declare core::marker::Destruct::drop_in_place(.rust_mut = "mut" .rust_pointer = "pointer" *void) : void
+    |}]
