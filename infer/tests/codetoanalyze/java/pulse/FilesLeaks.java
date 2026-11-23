@@ -15,10 +15,12 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.stream.Stream;
 
 // Streams returned by the java.nio.file.Files factories (issue #2110)
 public class FilesLeaks {
@@ -152,5 +154,95 @@ public class FilesLeaks {
 
   public DirectoryStream<Path> newDirectoryStreamReturnedOk(Path dir) throws IOException {
     return Files.newDirectoryStream(dir);
+  }
+
+  // Streams from Files.lines, walk, find and list own a file or directory handle until close().
+  // Left unknown, Pulse never allocates them, so not closing the stream is missed. count() and
+  // limit() must not drop the stream.
+
+  public void linesNotClosedBad(Path path) throws IOException {
+    Files.lines(path);
+  }
+
+  public void linesNotClosedAfterCountBad(Path path) throws IOException {
+    Stream<String> lines = Files.lines(path);
+    lines.count();
+  }
+
+  public void linesChainedNotClosedBad(Path path) throws IOException {
+    Files.lines(path).limit(10).count();
+  }
+
+  public void linesCharsetNotClosedBad(Path path) throws IOException {
+    Files.lines(path, StandardCharsets.UTF_8);
+  }
+
+  public void linesClosedOk(Path path) throws IOException {
+    Stream<String> lines = Files.lines(path);
+    lines.close();
+  }
+
+  public void linesTryWithResourcesOk(Path path) throws IOException {
+    try (Stream<String> lines = Files.lines(path)) {
+      lines.count();
+    }
+  }
+
+  public void linesChainedTryWithResourcesOk(Path path) throws IOException {
+    try (Stream<String> lines = Files.lines(path).limit(10)) {
+      lines.count();
+    }
+  }
+
+  public Stream<String> linesReturnedOk(Path path) throws IOException {
+    return Files.lines(path);
+  }
+
+  public void walkNotClosedBad(Path start) throws IOException {
+    Files.walk(start);
+  }
+
+  public void walkMaxDepthNotClosedBad(Path start) throws IOException {
+    Files.walk(start, 1);
+  }
+
+  public void walkTryWithResourcesOk(Path start) throws IOException {
+    try (Stream<Path> walk = Files.walk(start)) {
+      walk.count();
+    }
+  }
+
+  public void walkClosedOk(Path start) throws IOException {
+    Stream<Path> walk = Files.walk(start);
+    walk.close();
+  }
+
+  public void findNotClosedBad(Path start) throws IOException {
+    Files.find(start, 3, (path, attrs) -> true);
+  }
+
+  public void findTryWithResourcesOk(Path start) throws IOException {
+    try (Stream<Path> found = Files.find(start, 2, (path, attrs) -> true)) {
+      found.count();
+    }
+  }
+
+  public void listNotClosedBad(Path dir) throws IOException {
+    Files.list(dir);
+  }
+
+  public void listNotClosedAfterIteratorBad(Path dir) throws IOException {
+    Stream<Path> list = Files.list(dir);
+    list.iterator();
+  }
+
+  public void listTryWithResourcesOk(Path dir) throws IOException {
+    try (Stream<Path> list = Files.list(dir)) {
+      list.iterator();
+    }
+  }
+
+  public Stream<Path> listReturnedOk(Path dir) throws IOException {
+    return Files.list(dir);
   }
 }
