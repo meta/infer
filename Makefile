@@ -876,6 +876,10 @@ ifeq ($(BUILD_HACK_ANALYZERS),yes)
 	test -d      '$(DESTDIR)$(libdir)/infer/infer/lib/hack/' || \
 	  $(MKDIR_P) '$(DESTDIR)$(libdir)/infer/infer/lib/hack/'
 endif
+ifeq ($(BUILD_RUST_ANALYZERS),yes)
+        test -d      '$(DESTDIR)$(libdir)/infer/infer/lib/rust/' || \
+          $(MKDIR_P) '$(DESTDIR)$(libdir)/infer/infer/lib/rust/'
+endif
 ifeq ($(BUILD_ERLANG_ANALYZERS),yes)
 	test -d      '$(DESTDIR)$(libdir)/infer/infer/lib/erlang/' || \
 	  $(MKDIR_P) '$(DESTDIR)$(libdir)/infer/infer/lib/erlang/'
@@ -893,6 +897,10 @@ endif
 ifeq ($(BUILD_HACK_ANALYZERS),yes)
 	$(INSTALL_DATA) -C          'infer/lib/hack/models.sil' \
 	  '$(DESTDIR)$(libdir)/infer/infer/lib/hack/models.sil'
+endif
+ifeq ($(BUILD_RUST_ANALYZERS),yes)
+        $(INSTALL_DATA) -C          'infer/lib/rust/models.sil' \
+          '$(DESTDIR)$(libdir)/infer/infer/lib/rust/models.sil'
 endif
 ifeq ($(BUILD_C_ANALYZERS),yes)
 	$(INSTALL_DATA) -C          'facebook-clang-plugins/libtooling/build/FacebookClangPlugin.dylib' \
