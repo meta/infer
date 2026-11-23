@@ -59,3 +59,41 @@ void capture_constexpr_sentinel_good() {
   constexpr int x = 0;
   []() { return; }();
 }
+
+// a constant read in a lambda without being odr-used is not captured
+void const_int_read_in_ref_lambda_ok() {
+  const int x = 7;
+  auto f = [&]() { foo(x); };
+  f();
+}
+
+void const_int_read_in_value_lambda_ok() {
+  const int x = 7;
+  auto f = [=]() { foo(x); };
+  f();
+}
+
+void const_int_read_in_immediate_lambda_ok() {
+  const int x = 7;
+  [&]() { foo(x); }();
+}
+
+void const_int_read_in_nested_lambda_ok() {
+  const int x = 7;
+  auto f = [&]() {
+    auto g = [&]() { foo(x); };
+    g();
+  };
+  f();
+}
+
+void const_int_shadowed_in_lambda_bad() {
+  const int x = 7;
+  auto f = []() {
+    const int x = 3;
+    foo(x);
+  };
+  f();
+}
+
+void unused_const_int_bad() { const int x = 7; }
