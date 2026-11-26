@@ -425,6 +425,50 @@ module Resource = struct
 
   let byte_channel_usage_modeled = StringSet.of_list ["isOpen"]
 
+  (* [java.net.DatagramSocket] (and [MulticastSocket]) holds a native socket until [close]. [send],
+     [receive], [connect] and [bind] do not close it and may throw [IOException]. Left unknown, any
+     of them makes Pulse drop the socket, so a socket that is never closed is not reported.
+     [disconnect] and the accessors below do not throw checked exceptions. *)
+  let datagram_socket_usage_modeled_throws_IOException =
+    StringSet.of_list
+      [ "bind"
+      ; "connect"
+      ; "getBroadcast"
+      ; "getOption"
+      ; "getReceiveBufferSize"
+      ; "getReuseAddress"
+      ; "getSendBufferSize"
+      ; "getSoTimeout"
+      ; "getTrafficClass"
+      ; "joinGroup"
+      ; "leaveGroup"
+      ; "receive"
+      ; "send"
+      ; "setBroadcast"
+      ; "setOption"
+      ; "setReceiveBufferSize"
+      ; "setReuseAddress"
+      ; "setSendBufferSize"
+      ; "setSoTimeout"
+      ; "setTrafficClass" ]
+
+
+  let datagram_socket_usage_modeled =
+    StringSet.of_list
+      [ "disconnect"
+      ; "getChannel"
+      ; "getInetAddress"
+      ; "getLocalAddress"
+      ; "getLocalPort"
+      ; "getLocalSocketAddress"
+      ; "getPort"
+      ; "getRemoteSocketAddress"
+      ; "isBound"
+      ; "isClosed"
+      ; "isConnected"
+      ; "supportedOptions" ]
+
+
   (* [Files.lines], [Files.walk], [Files.find] and [Files.list] return a [Stream] that owns a file
      or directory handle until [BaseStream.close]. Intermediate and terminal operations do not
      close it. Left unknown, any of them removes the allocation attribute, so the leak disappears.
@@ -1018,6 +1062,19 @@ let matchers : matcher list =
     &:: "<init>" <>$ capt_arg_payload
     $+...$--> Resource.allocate ~exn_class_name:"java.io.IOException"
     |> with_non_disj
+  ; +map_context_tenv (PatternMatch.Java.implements "java.net.DatagramSocket")
+    &:: "<init>" <>$ capt_arg_payload
+    $+...$--> Resource.allocate ~exn_class_name:"java.io.IOException"
+    |> with_non_disj
+  ; +map_context_tenv (PatternMatch.Java.implements "java.net.DatagramSocket")
+    &::+ (fun _ proc_name_str ->
+    StringSet.mem proc_name_str Resource.datagram_socket_usage_modeled_throws_IOException )
+    <>$ any_arg
+    $+...$--> Resource.use ~exn_class_name:"java.io.IOException"
+    |> with_non_disj
+  ; +map_context_tenv (PatternMatch.Java.implements "java.net.DatagramSocket")
+    &::+ (fun _ proc_name_str -> StringSet.mem proc_name_str Resource.datagram_socket_usage_modeled)
+    <>$ any_arg $+...$--> Basic.skip |> with_non_disj
   ; +map_context_tenv
        (PatternMatch.Java.implements_one_of
           ["java.io.FileInputStream"; "java.io.FileOutputStream"; "java.io.RandomAccessFile"] )
