@@ -33,9 +33,12 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.HttpURLConnection;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.channels.FileChannel;
@@ -714,6 +717,42 @@ public class ResourceLeaks {
       OutputStream stream = socket.getOutputStream();
       stream.write(10);
     }
+  }
+
+  // DatagramSocket holds a native socket until close(). Constructors were not modeled, and
+  // send/receive/connect were unknown, so Pulse dropped the socket.
+
+  public void datagramSocketNotClosedBad() throws SocketException {
+    new DatagramSocket();
+  }
+
+  public void datagramSocketNotClosedAfterReceiveBad() throws IOException {
+    DatagramSocket socket = new DatagramSocket();
+    socket.receive(new DatagramPacket(new byte[8], 8));
+  }
+
+  public void datagramSocketNotClosedAfterDisconnectBad() throws SocketException {
+    DatagramSocket socket = new DatagramSocket();
+    socket.disconnect();
+  }
+
+  public void datagramSocketClosedAfterReceiveOk() throws IOException {
+    DatagramSocket socket = new DatagramSocket();
+    try {
+      socket.receive(new DatagramPacket(new byte[8], 8));
+    } finally {
+      socket.close();
+    }
+  }
+
+  public void datagramSocketTryWithResourcesOk() throws IOException {
+    try (DatagramSocket socket = new DatagramSocket()) {
+      socket.send(new DatagramPacket(new byte[1], 1));
+    }
+  }
+
+  public DatagramSocket datagramSocketReturnedOk() throws SocketException {
+    return new DatagramSocket();
   }
 
   // ServerSocket tests
