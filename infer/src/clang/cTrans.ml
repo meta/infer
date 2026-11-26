@@ -3430,7 +3430,12 @@ module CTrans_funct (F : CModule_type.CFrontend) : CModule_type.CTranslation = s
     | DecompositionDecl _ :: _
     | RecordDecl _ :: _ ->
         collect_all_decl trans_state decl_list succ_nodes stmt_info
-    | (NamespaceAliasDecl _ | TypedefDecl _ | TypeAliasDecl _ | UsingDecl _ | UsingDirectiveDecl _)
+    | ( NamespaceAliasDecl _
+      | StaticAssertDecl _
+      | TypedefDecl _
+      | TypeAliasDecl _
+      | UsingDecl _
+      | UsingDirectiveDecl _ )
       :: _ ->
         mk_trans_result (mk_fresh_void_exp_typ ()) empty_control
     | decl :: _ ->

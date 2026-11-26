@@ -122,3 +122,6 @@ check_stream successful_empty 0 empty no
 check_stream successful_corrupt 0 corrupt no
 check_stream successful_empty_keep_going 0 empty yes
 check_stream successful_corrupt_keep_going 0 corrupt yes
+
+bash "$source_dir/test_static_assert.sh" "$infer_bin"
+python3 "$source_dir/test_libcxx_warning.py" "$infer_bin"
