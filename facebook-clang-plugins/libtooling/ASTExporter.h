@@ -49,6 +49,10 @@
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/FrontendDiagnostic.h>
 #include <clang/Frontend/FrontendPluginRegistry.h>
+#include <clang/Lex/MacroArgs.h>
+#include <clang/Lex/MacroInfo.h>
+#include <clang/Lex/PPCallbacks.h>
+#include <clang/Lex/Preprocessor.h>
 
 #include <llvm/Support/raw_ostream.h>
 
@@ -62,6 +66,83 @@
 //===----------------------------------------------------------------------===//
 
 namespace ASTLib {
+
+// libc++ checks comparator const-callability through its generic invoke trait.
+// During an incomplete key's definition that candidate search can invalidate a
+// later conversion function in Clang. Check the actual binary call instead,
+// retaining the diagnostic attribute and its severity.
+class LibcxxComparatorHandler : public clang::PPCallbacks {
+  clang::Preprocessor &PP;
+  clang::ASTContext &Context;
+
+  bool hasDirectCallTrait() const {
+    auto Namespaces = Context.getTranslationUnitDecl()->lookup(
+        clang::DeclarationName(PP.getIdentifierInfo("__infer_capture")));
+    for (auto *Decl : Namespaces) {
+      if (auto *Namespace = llvm::dyn_cast<clang::NamespaceDecl>(Decl)) {
+        auto Traits = Namespace->lookup(clang::DeclarationName(
+            PP.getIdentifierInfo("is_directly_invokable")));
+        for (auto *Trait : Traits) {
+          if (auto *Template = llvm::dyn_cast<clang::ClassTemplateDecl>(Trait)) {
+            if (Template->getTemplatedDecl()->getDefinition()) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+ public:
+  LibcxxComparatorHandler(clang::Preprocessor &PP, clang::ASTContext &Context)
+      : PP(PP), Context(Context) {}
+
+  void MacroExpands(const clang::Token &Name,
+                    const clang::MacroDefinition &Definition,
+                    clang::SourceRange,
+                    const clang::MacroArgs *Args) override {
+    if (Name.getIdentifierInfo()->getName() != "_LIBCPP_DIAGNOSE_WARNING" ||
+        !Args) {
+      return;
+    }
+    const auto *Info = Definition.getMacroInfo();
+    static const char *Body[] = {"__attribute__", "(", "(", "diagnose_if",
+                                 "(", "__VA_ARGS__", ",", "\"warning\"",
+                                 ")", ")", ")"};
+    if (!Info->isFunctionLike() || !Info->isC99Varargs() ||
+        Info->getNumParams() != 1 || Info->getNumTokens() != 11) {
+      return;
+    }
+    for (unsigned I = 0; I != 11; ++I) {
+      if (PP.getSpelling(Info->getReplacementToken(I)) != Body[I]) {
+        return;
+      }
+    }
+    const auto *Tokens = Args->getUnexpArgument(0);
+    static const char *Condition[] = {
+        "!", "std", "::", "__invokable", "<", "_Compare", "const", "&",
+        ",", "_Tp", "const", "&", ",", "_Tp", "const", "&", ">",
+        "::", "value", ",",
+        "\"the specified comparator type does not provide a const call operator\""};
+    if (clang::MacroArgs::getArgLength(Tokens) != 21) {
+      return;
+    }
+    for (unsigned I = 0; I != 21; ++I) {
+      if (PP.getSpelling(Tokens[I]) != Condition[I]) {
+        return;
+      }
+    }
+    if (!hasDirectCallTrait()) {
+      return;
+    }
+    // Macro arguments are owned mutable tokens; callbacks receive a const view.
+    // Change only the two identifiers, keeping arguments and source locations.
+    auto *Mutable = const_cast<clang::Token *>(Tokens);
+    Mutable[1].setIdentifierInfo(PP.getIdentifierInfo("__infer_capture"));
+    Mutable[3].setIdentifierInfo(PP.getIdentifierInfo("is_directly_invokable"));
+  }
+};
 
 struct ASTExporterOptions : ASTPluginLib::PluginASTOptionsBase {
   bool withPointers = true;
@@ -5565,6 +5646,11 @@ class ExporterASTConsumer : public ASTConsumer {
                       std::shared_ptr<PreprocessorHandlerData> sharedData,
                       std::unique_ptr<raw_ostream> &&OS)
       : options(options), OS(std::move(OS)) {
+    if (CI.getLangOpts().CPlusPlus) {
+      CI.getPreprocessor().addPPCallbacks(
+          std::make_unique<LibcxxComparatorHandler>(CI.getPreprocessor(),
+                                                   CI.getASTContext()));
+    }
     if (ForceYojson) {
       options->atdWriterOptions.useYojson = true;
     }
