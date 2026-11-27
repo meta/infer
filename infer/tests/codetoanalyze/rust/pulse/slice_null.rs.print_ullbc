@@ -1,0 +1,163 @@
+# Final ULLBC before serialization:
+
+fn UNIT_METADATA()
+{
+    let _0: (); // return
+
+    bb0: {
+        _0 = ();
+        return;
+    }
+}
+
+const UNIT_METADATA: () = @Fun0()
+
+// Full name: slice_null::first
+fn first<'_0>(_1: &'_0 [*const i32]) -> i32
+{
+    let _0: i32; // return
+    let v_1: &'1 [*const i32]; // arg #1
+    let _2: usize; // anonymous local
+    let _3: *const i32; // anonymous local
+
+    bb0: {
+        storage_live(_3);
+        storage_live(_2);
+        _2 = const 0 : usize;
+        _3 = copy (*v_1)[copy _2];
+        _0 = copy (*_3);
+        storage_dead(_2);
+        return;
+    }
+}
+
+// Full name: slice_null::null_through_slice_bad
+fn null_through_slice_bad()
+{
+    let _0: (); // return
+    let a_1: [*const i32; 1 : usize]; // local
+    let _2: *const i32; // anonymous local
+    let _3: i32; // anonymous local
+    let _4: &'1 [*const i32]; // anonymous local
+    let _5: &'3 [*const i32; 1 : usize]; // anonymous local
+    let _6: &'4 [*const i32; 1 : usize]; // anonymous local
+
+    bb0: {
+        _0 = ();
+        storage_live(a_1);
+        storage_live(_2);
+        _2 = cast<usize, *const i32>(const 0 : usize);
+        a_1 = [move _2];
+        storage_dead(_2);
+        storage_live(_3);
+        storage_live(_4);
+        storage_live(_5);
+        storage_live(_6);
+        _6 = &a_1;
+        _5 = &(*_6);
+        _4 = unsize_cast<&'3 [*const i32; 1 : usize], &'5 [*const i32], 1 : usize>(move _5);
+        storage_dead(_5);
+        _3 = first<'7>(move _4) -> bb2 (unwind: bb1);
+    }
+
+    bb1: {
+        unwind_continue;
+    }
+
+    bb2: {
+        storage_dead(_4);
+        storage_dead(_6);
+        storage_dead(_3);
+        _0 = ();
+        storage_dead(a_1);
+        return;
+    }
+}
+
+// Full name: slice_null::valid_pointer_through_slice_ok
+fn valid_pointer_through_slice_ok()
+{
+    let _0: (); // return
+    let x_1: i32; // local
+    let a_2: [*const i32; 1 : usize]; // local
+    let _3: *const i32; // anonymous local
+    let _4: &'1 i32; // anonymous local
+    let _5: i32; // anonymous local
+    let _6: &'3 [*const i32]; // anonymous local
+    let _7: &'5 [*const i32; 1 : usize]; // anonymous local
+    let _8: &'6 [*const i32; 1 : usize]; // anonymous local
+
+    bb0: {
+        _0 = ();
+        storage_live(x_1);
+        x_1 = const 7 : i32;
+        storage_live(a_2);
+        storage_live(_3);
+        storage_live(_4);
+        _4 = &x_1;
+        _3 = &raw const (*_4);
+        a_2 = [move _3];
+        storage_dead(_3);
+        storage_dead(_4);
+        storage_live(_5);
+        storage_live(_6);
+        storage_live(_7);
+        storage_live(_8);
+        _8 = &a_2;
+        _7 = &(*_8);
+        _6 = unsize_cast<&'5 [*const i32; 1 : usize], &'7 [*const i32], 1 : usize>(move _7);
+        storage_dead(_7);
+        _5 = first<'9>(move _6) -> bb2 (unwind: bb1);
+    }
+
+    bb1: {
+        unwind_continue;
+    }
+
+    bb2: {
+        storage_dead(_6);
+        storage_dead(_8);
+        storage_dead(_5);
+        _0 = ();
+        storage_dead(a_2);
+        storage_dead(x_1);
+        return;
+    }
+}
+
+// Full name: slice_null::main
+fn main()
+{
+    let _0: (); // return
+    let _1: (); // anonymous local
+    let _2: (); // anonymous local
+
+    bb0: {
+        _0 = ();
+        storage_live(_1);
+        _1 = null_through_slice_bad() -> bb2 (unwind: bb1);
+    }
+
+    bb1: {
+        unwind_continue;
+    }
+
+    bb2: {
+        storage_dead(_1);
+        storage_live(_2);
+        _2 = valid_pointer_through_slice_ok() -> bb4 (unwind: bb3);
+    }
+
+    bb3: {
+        unwind_continue;
+    }
+
+    bb4: {
+        storage_dead(_2);
+        _0 = ();
+        return;
+    }
+}
+
+
+
