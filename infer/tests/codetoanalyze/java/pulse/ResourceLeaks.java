@@ -39,6 +39,7 @@ import java.net.Socket;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.channels.FileChannel;
+import java.nio.channels.Selector;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -810,6 +811,59 @@ public class ResourceLeaks {
     } finally {
       listener.close();
     }
+  }
+
+  // Selector.open returns a fresh selector that owns a native poll handle until close().
+  // Left unknown, Pulse never allocates it, and select/keys/wakeup drop it, so not closing the
+  // selector is missed.
+
+  public void selectorOpenNotClosedBad() throws IOException {
+    Selector.open();
+  }
+
+  public void selectorNotClosedAfterSelectBad() throws IOException {
+    Selector selector = Selector.open();
+    selector.select();
+  }
+
+  public void selectorNotClosedAfterSelectNowBad() throws IOException {
+    Selector selector = Selector.open();
+    selector.selectNow();
+  }
+
+  public void selectorNotClosedAfterKeysBad() throws IOException {
+    Selector selector = Selector.open();
+    selector.keys();
+  }
+
+  public void selectorNotClosedOnSelectExceptionBad() throws IOException {
+    Selector selector = Selector.open();
+    selector.select();
+    selector.close();
+  }
+
+  public void selectorClosedAfterSelectOk() throws IOException {
+    Selector selector = Selector.open();
+    try {
+      selector.select();
+    } finally {
+      selector.close();
+    }
+  }
+
+  public void selectorTryWithResourcesOk() throws IOException {
+    try (Selector selector = Selector.open()) {
+      selector.selectNow();
+    }
+  }
+
+  public void selectorWakeupClosedOk() throws IOException {
+    Selector selector = Selector.open();
+    selector.wakeup().close();
+  }
+
+  public Selector selectorReturnedOk() throws IOException {
+    return Selector.open();
   }
 
   // HttpURLConnection
