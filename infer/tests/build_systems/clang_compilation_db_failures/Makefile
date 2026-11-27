@@ -8,7 +8,7 @@ TESTS_DIR = ../..
 include $(TESTS_DIR)/base.make
 
 # two of the three files do not compile on purpose: the test checks that infer reports them
-INFER_OPTIONS = --keep-going --no-default-checkers --pulse --project-root $(TESTS_DIR)
+INFER_OPTIONS = --keep-going --jobs 4 --no-default-checkers --pulse --project-root $(TESTS_DIR)
 SOURCES = $(wildcard ../codetoanalyze/clang_compilation_db_failures/*.c)
 CLEAN_EXTRA = compile_commands.json console.log issues.test.txt
 
