@@ -483,6 +483,14 @@ module Resource = struct
       ; "toList" ]
 
 
+  (* [java.nio.channels.Selector.open] returns a selector that owns a native poll handle until
+     [close]. [select] and [selectNow] do not close it and may throw [IOException]. The calls below
+     do not close it and do not throw checked exceptions. [wakeup] is modeled separately because it
+     returns the same selector. Left unknown, any of them makes Pulse drop the selector. *)
+  let selector_usage_modeled_throws_IOException = StringSet.of_list ["select"; "selectNow"]
+
+  let selector_usage_modeled = StringSet.of_list ["isOpen"; "keys"; "provider"; "selectedKeys"]
+
   let use ~exn_class_name : model_no_non_disj =
     let exn = JavaClassName.from_string exn_class_name in
     fun model_data astate ->
@@ -1156,6 +1164,29 @@ let matchers : matcher list =
     |> with_non_disj
   ; +map_context_tenv (PatternMatch.Java.implements "java.nio.channels.SeekableByteChannel")
     &::+ (fun _ proc_name_str -> StringSet.mem proc_name_str Resource.byte_channel_usage_modeled)
+    <>$ any_arg $+...$--> Basic.skip |> with_non_disj
+    (* [Selector.open] returns a fresh selector that owns a native poll handle until [close]. It
+       does not go through a modeled constructor, so the selector was never tracked (same gap as
+       [FileChannel.open]). [select] and [selectNow] may throw [IOException] without closing it.
+       [wakeup] returns the same selector. [keys], [selectedKeys], [isOpen] and [provider] do not
+       close it either. Left unknown, any of them makes Pulse drop the selector. *)
+  ; +map_context_tenv (PatternMatch.Java.implements "java.nio.channels.Selector")
+    &:: "open"
+    <>--> Resource.allocate_returned ~exn_class_name:"java.io.IOException"
+            "java.nio.channels.Selector"
+    |> with_non_disj
+  ; +map_context_tenv (PatternMatch.Java.implements "java.nio.channels.Selector")
+    &::+ (fun _ proc_name_str ->
+    StringSet.mem proc_name_str Resource.selector_usage_modeled_throws_IOException )
+    <>$ any_arg
+    $+...$--> Resource.use ~exn_class_name:"java.io.IOException"
+    |> with_non_disj
+  ; +map_context_tenv (PatternMatch.Java.implements "java.nio.channels.Selector")
+    &:: "wakeup" <>$ capt_arg_payload
+    $--> Basic.id_first_arg ~desc:"java.nio.channels.Selector.wakeup"
+    |> with_non_disj
+  ; +map_context_tenv (PatternMatch.Java.implements "java.nio.channels.Selector")
+    &::+ (fun _ proc_name_str -> StringSet.mem proc_name_str Resource.selector_usage_modeled)
     <>$ any_arg $+...$--> Basic.skip |> with_non_disj
     (* [Files.newDirectoryStream] returns a fresh directory stream that holds an open directory
        handle until [close]. It does not go through a modeled constructor, so the stream was never
