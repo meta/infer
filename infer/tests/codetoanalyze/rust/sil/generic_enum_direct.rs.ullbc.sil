@@ -1,0 +1,375 @@
+// 
+// Copyright (c) Facebook, Inc. and its affiliates.
+//
+// This source code is licensed under the MIT license found in the
+// LICENSE file in the root directory of this source tree.
+
+.source_language = "Rust"
+
+type core::option::Option = {@discriminant: int}
+
+type core::option::Option@None extends core::option::Option = {@discriminant: int}
+
+type core::option::Option@Some extends core::option::Option = {@discriminant: int;
+                                                               0: void}
+
+type core::result::Result = {@discriminant: int}
+
+type core::result::Result@Err extends core::result::Result = {@discriminant: int;
+                                                              0: void}
+
+type core::result::Result@Ok extends core::result::Result = {@discriminant: int;
+                                                             0: void}
+
+type generic_enum_direct::Counter = {n: int}
+
+type generic_enum_direct::G = {@discriminant: int}
+
+type generic_enum_direct::G@A extends generic_enum_direct::G = {@discriminant: int;
+                                                                0: void}
+
+type generic_enum_direct::G@B extends generic_enum_direct::G = {@discriminant: int}
+
+define generic_enum_direct::opt_match(o_1: core::option::Option<int>) : int {
+  local var_0: int, var_2: int, v_3: int
+  #node_0:
+      store &var_2 <- &o_1.core::option::Option.@discriminant:int
+      jmp Switch_0__otherwise, Switch_0__0, Switch_0__1
+      
+  #Switch_0__0:
+      n0:int = load &var_2
+      prune __sil_eq(n0, 0)
+      jmp node_1
+      
+  #Switch_0__1:
+      n1:int = load &var_2
+      prune __sil_eq(n1, 1)
+      jmp node_2
+      
+  #Switch_0__otherwise:
+      n2:int = load &var_2
+      prune __sil_lnot(__sil_eq(n2, 0))
+      n3:int = load &var_2
+      prune __sil_lnot(__sil_eq(n3, 1))
+      jmp node_3
+      
+  #node_1:
+      store &var_0 <- 0:int
+      n4:int = load &var_0
+      ret n4
+      
+  #node_2:
+      n5:int = load &o_1.core::option::Option@Some.0
+      store &v_3 <- n5:int
+      n6:int = load &v_3
+      store &var_0 <- n6:int
+      n7:int = load &var_0
+      ret n7
+      
+  #node_3:
+      throw "Undefined Behaviour"
+      
+}
+
+define generic_enum_direct::opt_if_let(o_1: core::option::Option<int>) : int {
+  local var_0: int, var_2: int, v_3: int
+  #node_0:
+      store &var_2 <- &o_1.core::option::Option.@discriminant:int
+      jmp Switch_0__otherwise, Switch_0__1
+      
+  #Switch_0__1:
+      n0:int = load &var_2
+      prune __sil_eq(n0, 1)
+      jmp node_1
+      
+  #Switch_0__otherwise:
+      n1:int = load &var_2
+      prune __sil_lnot(__sil_eq(n1, 1))
+      jmp node_2
+      
+  #node_1:
+      n2:int = load &o_1.core::option::Option@Some.0
+      store &v_3 <- n2:int
+      n3:int = load &v_3
+      store &var_0 <- n3:int
+      n4:int = load &var_0
+      ret n4
+      
+  #node_2:
+      store &var_0 <- 0:int
+      n5:int = load &var_0
+      ret n5
+      
+}
+
+define generic_enum_direct::res_match(r_1: core::result::Result<int,int>) : int {
+  local var_0: int, var_2: int, v_3: int, e_4: int
+  #node_0:
+      store &var_2 <- &r_1.core::result::Result.@discriminant:int
+      jmp Switch_0__otherwise, Switch_0__0, Switch_0__1
+      
+  #Switch_0__0:
+      n0:int = load &var_2
+      prune __sil_eq(n0, 0)
+      jmp node_1
+      
+  #Switch_0__1:
+      n1:int = load &var_2
+      prune __sil_eq(n1, 1)
+      jmp node_2
+      
+  #Switch_0__otherwise:
+      n2:int = load &var_2
+      prune __sil_lnot(__sil_eq(n2, 0))
+      n3:int = load &var_2
+      prune __sil_lnot(__sil_eq(n3, 1))
+      jmp node_3
+      
+  #node_1:
+      n4:int = load &r_1.core::result::Result@Ok.0
+      store &v_3 <- n4:int
+      n5:int = load &v_3
+      store &var_0 <- n5:int
+      n6:int = load &var_0
+      ret n6
+      
+  #node_2:
+      n7:int = load &r_1.core::result::Result@Err.0
+      store &e_4 <- n7:int
+      n8:int = load &e_4
+      store &var_0 <- n8:int
+      n9:int = load &var_0
+      ret n9
+      
+  #node_3:
+      throw "Undefined Behaviour"
+      
+}
+
+define generic_enum_direct::user_generic(g_1: generic_enum_direct::G<int>) : int {
+  local var_0: int, var_2: int, v_3: int
+  #node_0:
+      store &var_2 <- &g_1.generic_enum_direct::G.@discriminant:int
+      jmp Switch_0__otherwise, Switch_0__0, Switch_0__1
+      
+  #Switch_0__0:
+      n0:int = load &var_2
+      prune __sil_eq(n0, 0)
+      jmp node_1
+      
+  #Switch_0__1:
+      n1:int = load &var_2
+      prune __sil_eq(n1, 1)
+      jmp node_2
+      
+  #Switch_0__otherwise:
+      n2:int = load &var_2
+      prune __sil_lnot(__sil_eq(n2, 0))
+      n3:int = load &var_2
+      prune __sil_lnot(__sil_eq(n3, 1))
+      jmp node_3
+      
+  #node_1:
+      n4:int = load &g_1.generic_enum_direct::G@A.0
+      store &v_3 <- n4:int
+      n5:int = load &v_3
+      store &var_0 <- n5:int
+      n6:int = load &var_0
+      ret n6
+      
+  #node_2:
+      store &var_0 <- 0:int
+      n7:int = load &var_0
+      ret n7
+      
+  #node_3:
+      throw "Undefined Behaviour"
+      
+}
+
+define generic_enum_direct::opt_ref(o_1: core::option::Option<::rust_mut = "const" ::rust_pointer = "reference" *int>) : int {
+  local var_0: int, var_2: int, v_3: .rust_mut = "const" .rust_pointer = "reference" *int
+  #node_0:
+      store &var_2 <- &o_1.core::option::Option.@discriminant:int
+      jmp Switch_0__otherwise, Switch_0__0, Switch_0__1
+      
+  #Switch_0__0:
+      n0:int = load &var_2
+      prune __sil_eq(n0, 0)
+      jmp node_1
+      
+  #Switch_0__1:
+      n1:int = load &var_2
+      prune __sil_eq(n1, 1)
+      jmp node_2
+      
+  #Switch_0__otherwise:
+      n2:int = load &var_2
+      prune __sil_lnot(__sil_eq(n2, 0))
+      n3:int = load &var_2
+      prune __sil_lnot(__sil_eq(n3, 1))
+      jmp node_3
+      
+  #node_1:
+      store &var_0 <- 0:int
+      n4:int = load &var_0
+      ret n4
+      
+  #node_2:
+      n5:.rust_mut = "const" .rust_pointer = "reference" *int = load &o_1.core::option::Option@Some.0
+      store &v_3 <- n5:.rust_mut = "const" .rust_pointer = "reference" *int
+      n6:.rust_mut = "const" .rust_pointer = "reference" *int = load &v_3
+      n7:int = load n6
+      store &var_0 <- n7:int
+      n8:int = load &var_0
+      ret n8
+      
+  #node_3:
+      throw "Undefined Behaviour"
+      
+}
+
+define generic_enum_direct::generic_copy(o_1: core::option::Option<void>) : int {
+  local var_0: int, var_2: int
+  #node_0:
+      store &var_2 <- &o_1.core::option::Option.@discriminant:int
+      jmp Switch_0__otherwise, Switch_0__0, Switch_0__1
+      
+  #Switch_0__0:
+      n0:int = load &var_2
+      prune __sil_eq(n0, 0)
+      jmp node_1
+      
+  #Switch_0__1:
+      n1:int = load &var_2
+      prune __sil_eq(n1, 1)
+      jmp node_2
+      
+  #Switch_0__otherwise:
+      n2:int = load &var_2
+      prune __sil_lnot(__sil_eq(n2, 0))
+      n3:int = load &var_2
+      prune __sil_lnot(__sil_eq(n3, 1))
+      jmp node_3
+      
+  #node_1:
+      store &var_0 <- 0:int
+      n4:int = load &var_0
+      ret n4
+      
+  #node_2:
+      store &var_0 <- 1:int
+      n5:int = load &var_0
+      ret n5
+      
+  #node_3:
+      throw "Undefined Behaviour"
+      
+}
+
+define generic_enum_direct::while_let_next(c_1: .rust_mut = "mut" .rust_pointer = "reference" *generic_enum_direct::Counter) : int {
+  local var_0: int, s_2: int, var_3: core::option::Option<int>, var_4: .rust_mut = "mut" .rust_pointer = "reference" *generic_enum_direct::Counter, var_5: int, v_6: int, var_7: int, var_8: int
+  #node_0:
+      store &s_2 <- 0:int
+      jmp node_1
+      
+  #node_1:
+      n0:.rust_mut = "mut" .rust_pointer = "reference" *generic_enum_direct::Counter = load &c_1
+      store &var_4 <- n0:.rust_mut = "mut" .rust_pointer = "reference" *generic_enum_direct::Counter
+      n1:.rust_mut = "mut" .rust_pointer = "reference" *generic_enum_direct::Counter = load &c_1
+      n2 = __rust_retag(&var_4, n1, 1)
+      n3:.rust_mut = "mut" .rust_pointer = "reference" *generic_enum_direct::Counter = load &var_4
+      n4 = generic_enum_direct::{generic_enum_direct::Counter}::next(n3)
+      store &var_3 <- n4:core::option::Option<int>
+      jmp node_3
+      .handlers node_2
+      
+  #node_2:
+      throw "UnwindResume"
+      
+  #node_3:
+      store &var_5 <- &var_3.core::option::Option.@discriminant:int
+      jmp Switch_3__otherwise, Switch_3__1
+      
+  #Switch_3__1:
+      n5:int = load &var_5
+      prune __sil_eq(n5, 1)
+      jmp node_4
+      
+  #Switch_3__otherwise:
+      n6:int = load &var_5
+      prune __sil_lnot(__sil_eq(n6, 1))
+      jmp node_5
+      
+  #node_4:
+      n7:int = load &var_3.core::option::Option@Some.0
+      store &v_6 <- n7:int
+      n8:int = load &v_6
+      store &var_7 <- n8:int
+      n9:int = load &s_2
+      n10:int = load &var_7
+      store &var_8 <- __sil_plusa_int(n9, n10):int
+      n11:int = load &var_8
+      store &s_2 <- n11:int
+      jmp node_1
+      
+  #node_5:
+      n12:int = load &s_2
+      store &var_0 <- n12:int
+      n13:int = load &var_0
+      ret n13
+      
+}
+
+define generic_enum_direct::main() : void {
+  local var_0: void
+  #node_0:
+      store &var_0 <- null:void
+      store &var_0 <- null:void
+      n0:void = load &var_0
+      ret n0
+      
+}
+
+define generic_enum_direct::{generic_enum_direct::Counter}::next(self_1: .rust_mut = "mut" .rust_pointer = "reference" *generic_enum_direct::Counter) : core::option::Option<int> {
+  local var_0: core::option::Option<int>, var_2: int, var_3: int, var_4: int, var_5: int
+  #node_0:
+      n0:.rust_mut = "mut" .rust_pointer = "reference" *generic_enum_direct::Counter = load &self_1
+      n1:int = load n0.generic_enum_direct::Counter.n
+      store &var_3 <- n1:int
+      n2:int = load &var_3
+      store &var_2 <- __sil_gt(n2, 0):int
+      n3:int = load &var_2
+      jmp node_1, node_2
+      
+  #node_1:
+      prune n3
+      n4:.rust_mut = "mut" .rust_pointer = "reference" *generic_enum_direct::Counter = load &self_1
+      n5:int = load n4.generic_enum_direct::Counter.n
+      store &var_4 <- __sil_minusa_int(n5, 1):int
+      n6:.rust_mut = "mut" .rust_pointer = "reference" *generic_enum_direct::Counter = load &self_1
+      n7:int = load &var_4
+      store n6.generic_enum_direct::Counter.n <- n7:int
+      n8:.rust_mut = "mut" .rust_pointer = "reference" *generic_enum_direct::Counter = load &self_1
+      n9:int = load n8.generic_enum_direct::Counter.n
+      store &var_5 <- n9:int
+      store &var_0.core::option::Option@Some.@discriminant <- 1:int
+      n10:int = load &var_5
+      store &var_0.core::option::Option@Some.0 <- n10:int
+      jmp node_3
+      
+  #node_2:
+      prune __sil_lnot(n3)
+      store &var_0.core::option::Option@None.@discriminant <- 0:int
+      jmp node_3
+      
+  #node_3:
+      n11:core::option::Option<int> = load &var_0
+      ret n11
+      
+}
+
+declare core::marker::Destruct::drop_in_place(.rust_mut = "mut" .rust_pointer = "pointer" *void) : void
+
+declare core::clone::Clone::clone(.rust_mut = "const" .rust_pointer = "reference" *void) : void
+

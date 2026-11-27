@@ -124,7 +124,9 @@ let is_ptr_struct lang typ =
   match typ with
   | Typ.Ptr (Struct _, _) | Typ.Void ->
       true
-  | Typ.Ptr (Void, _) when Textual.Lang.is_c lang || Textual.Lang.is_swift lang ->
+  | Typ.Ptr (Void, _)
+    when Textual.Lang.is_c lang || Textual.Lang.is_swift lang || Textual.Lang.equal lang Rust ->
+      (* Rust translates generic type parameters to [void], e.g. the payload of [Option<T>] *)
       true
   | Typ.Float when Textual.Lang.is_swift lang ->
       true
