@@ -1454,6 +1454,39 @@ let matchers : matcher list =
     Cplusplus.Vector.at ~desc:"Enumeration.nextElement" x (AbstractValue.mk_fresh (), []) )
     |> with_non_disj
   ; -"java.lang.AssertionError" &:: "<init>" <>$ capt_arg $--> assertion_error
+    (* kotlin.jvm.internal.Intrinsics never returns from these, but it is library bytecode, so
+       without a model the call is unknown, it returns, and the path carries on. Reading a
+       `lateinit` property compiles to "load the field; if it is non-null jump over; otherwise
+       call throwUninitializedPropertyAccessException; push null", so a path that continues past
+       the thrower reaches that pushed null and the read of any uninitialized-property-checked
+       field looks like a null dereference.
+
+       Only the throwers whose failure the analysis cannot reason about are listed. The
+       [checkNotNull...] family looks like [Preconditions.checkNotNull] above and is deliberately
+       NOT modelled after it, because pruning the argument non-null makes the null branch
+       unsatisfiable, and Pulse then drops that disjunct instead of reporting it:
+
+       - kotlinc emits [checkNotNull] both for the programmer's own `x!!` and for an implicit
+         platform-type coercion, where nothing was asserted and a null arriving from Java is
+         precisely the bug to report. Pruning it loses
+         Kotlin.passNullFromJavaWhenDisallowedBad in codetoanalyze/kotlin/pulse.
+       - [checkNotNullParameter] opens every function that has a non-null formal, which is where
+         a null argument meets the requirement [update_pre_for_kotlin_proc] records for it.
+         Pruning it loses all six BasicJavaKotlinBoundary NULL_ARGUMENT findings there.
+
+       [throwNpe] and [throwJavaNpe] are the pre-1.4 compilation of those same two constructs and
+       are left out for the same reason; no kotlinc in the test suite emits them. [checkHasClass]
+       is not a null check at all -- it takes class names and throws ClassNotFoundException. *)
+  ; -"kotlin.jvm.internal.Intrinsics" &:: "throwUninitializedPropertyAccessException"
+    &--> Basic.early_exit |> with_non_disj
+  ; -"kotlin.jvm.internal.Intrinsics" &:: "throwUninitializedProperty" &--> Basic.early_exit
+    |> with_non_disj
+  ; -"kotlin.jvm.internal.Intrinsics" &:: "throwUndefinedForReified" &--> Basic.early_exit
+    |> with_non_disj
+  ; -"kotlin.jvm.internal.Intrinsics" &:: "throwAssert" &--> Basic.early_exit |> with_non_disj
+  ; -"kotlin.jvm.internal.Intrinsics" &:: "throwIllegalArgument" &--> Basic.early_exit
+    |> with_non_disj
+  ; -"kotlin.jvm.internal.Intrinsics" &:: "throwIllegalState" &--> Basic.early_exit |> with_non_disj
   ; -"java.lang.Object" &:: "<init>" &--> Basic.skip |> with_non_disj
   ; +map_context_tenv (PatternMatch.Java.implements_lang "Object")
     &:: "equals"
